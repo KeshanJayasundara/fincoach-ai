@@ -11,21 +11,6 @@ import CurrencyCard from "@/components/onboarding/CurrencyCard";
 import AuthLogo from "@/components/auth/AuthLogo";
 import AuthSubtitle from "@/components/auth/AuthSubtitle";
 
-/* ── Color reference ────────────────────────────────
-  Primary:       #5B4FE8
-  Primary light: #EEF0FD
-  Primary mid:   #C7C3F8
-  Primary border:#D1CCFF
-  Text dark:     #1A1635
-  Text mid:      #4A4568
-  Text muted:    #8B87A8
-  Brand indigo:  #3C3489
-  Brand mid:     #534AB7
-  BG page:       #F8F7FF
-  Border light:  #EAE8FB
-  Amber:         #D97706
-──────────────────────────────────────────────────── */
-
 const currNames: Record<string, string> = {
   LKR: "Sri Lankan Rupee (Rs)", USD: "US Dollar ($)", EUR: "Euro (€)",
   GBP: "British Pound (£)", AED: "UAE Dirham (د.إ)", SGD: "Singapore Dollar (S$)",
@@ -88,7 +73,6 @@ const incomes = [
   { em: "🏪", label: "Business Owner", desc: "Self-employed / business profit" },
 ];
 
-/* ── Full Worldwide Currency Library ── */
 const popularCurrencies = [
   { code: "USD", name: "$ · US Dollar" },
   { code: "EUR", name: "€ · Euro" },
@@ -270,7 +254,6 @@ export default function OnboardingPage() {
 
   const router = useRouter();
 
-  /* ── Profession ── */
   const handleProfClick = (name: string, em: string) => {
     if (name === "Other") {
       setShowCustomInput(true);
@@ -286,7 +269,6 @@ export default function OnboardingPage() {
 
   const displayedPrimaryProf = showCustomInput ? (customProf || "Custom profession") : primaryProf;
 
-  /* ── Additional Roles ── */
   const openAddRoleModal = () => {
     if (additionalRoles.length >= 2) return;
     setModalSelected(null);
@@ -314,7 +296,6 @@ export default function OnboardingPage() {
     setAdditionalRoles(additionalRoles.filter((_, i) => i !== index));
   };
 
-  /* ── Currency filter ── */
   const filteredCurrencies = currSearch.trim()
     ? allCurrencies.filter(c =>
         c.code.toLowerCase().includes(currSearch.toLowerCase()) ||
@@ -324,11 +305,9 @@ export default function OnboardingPage() {
 
   const goToDashboard = () => router.push("/dashboard");
 
-  /* ── Final Submit to Database ── */
   const handleFinishOnboarding = async () => {
     setLoading(true);
     setError("");
-
     try {
       await saveOnboarding({
         primaryProfession: showCustomInput ? customProf || "Custom Profession" : primaryProf,
@@ -343,7 +322,6 @@ export default function OnboardingPage() {
     }
   };
 
-  /* ── Modal available professions ── */
   const addedProfs = additionalRoles.map(r => r.prof);
   const availableModalProfs = modalProfessions.filter(
     p => p.name !== primaryProf && !addedProfs.includes(p.name)
@@ -363,19 +341,42 @@ export default function OnboardingPage() {
         .modal-pcard { border: 2px solid #E2E8F0; border-radius: 12px; padding: 10px 6px; cursor: pointer; transition: all 0.15s; text-align: center; background: #ffffff; }
         .modal-pcard:hover { border-color: #818CF8; background: #EEF0FD; }
         .modal-pcard.sel { border-color: #5B4FE8; background: #EEF0FD; }
-        .ob-btn-ghost { padding: 8px 16px; border: 1px solid #D1CCFF; border-radius: 8px; background: #ffffff; color: #4A4568; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Outfit', sans-serif; transition: all .15s; }
-        .ob-btn-primary { padding: 8px 16px; border: none; border-radius: 8px; background: #5B4FE8; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit', sans-serif; transition: all .15s; }
-        .ob-inp { width: 100%; padding: 9px 12px; border: 1px solid #D1CCFF; border-radius: 9px; font-family: 'Outfit', sans-serif; font-size: 13px; color: #1A1635; background: #F8F7FF; outline: none; transition: all .15s; }
+        .ob-btn-ghost { padding: 10px 16px; border: 1px solid #D1CCFF; border-radius: 8px; background: #ffffff; color: #4A4568; font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'Outfit', sans-serif; transition: all .15s; }
+        .ob-btn-primary { padding: 10px 16px; border: none; border-radius: 8px; background: #5B4FE8; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit', sans-serif; transition: all .15s; }
+        .ob-inp { width: 100%; padding: 10px 12px; border: 1px solid #D1CCFF; border-radius: 9px; font-family: 'Outfit', sans-serif; font-size: 14px; color: #1A1635; background: #F8F7FF; outline: none; transition: all .15s; }
         .ob-inp:focus { border-color: #5B4FE8; background: #ffffff; box-shadow: 0 0 0 3px rgba(91,79,232,0.10); }
         .curr-section-hdr { grid-column: 1 / -1; font-size: 10px; font-weight: 700; color: #8B87A8; text-transform: uppercase; letter-spacing: .08em; padding: 6px 0 2px; }
         .curr-section-hdr:first-child { padding-top: 4px; }
+
+        /* ── Mobile responsive ── */
+        .ob-prof-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 10px; }
+        .ob-income-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .ob-curr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 2px; }
+        .ob-modal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 12px; }
+        .ob-btn-row { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+        .ob-btn-row-end { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+        .ob-btn-right-group { display: flex; gap: 7px; flex-wrap: wrap; }
+        .ob-card { background: #ffffff; border-radius: 20px; padding: 28px 28px 32px; width: 100%; max-width: 620px; box-shadow: 0 8px 32px rgba(91,79,232,0.13); }
+
+        @media (max-width: 480px) {
+          .ob-card { border-radius: 16px; padding: 20px 16px 24px; }
+          .ob-prof-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+          .ob-income-grid { grid-template-columns: 1fr; gap: 8px; }
+          .ob-curr-grid { grid-template-columns: repeat(2, 1fr); max-height: 200px; }
+          .ob-modal-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+          .ob-btn-row { flex-direction: column-reverse; gap: 8px; }
+          .ob-btn-row-end { flex-direction: column; }
+          .ob-btn-right-group { flex-direction: column; width: 100%; }
+          .ob-btn-ghost { width: 100%; text-align: center; padding: 12px 16px; font-size: 14px; }
+          .ob-btn-primary { width: 100%; text-align: center; padding: 12px 16px; font-size: 14px; }
+          .ob-finish-btn { width: 100% !important; max-width: 100% !important; }
+        }
       `}</style>
 
-      <div style={{ minHeight: "100vh", background: "#F8F7FF", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", fontFamily: "'Outfit', sans-serif" }}>
-        <div style={{ background: "#ffffff", borderRadius: "20px", padding: "28px 28px 32px", width: "100%", maxWidth: "620px", boxShadow: "0 8px 32px rgba(91,79,232,0.13)" }}>
+      <div style={{ minHeight: "100vh", background: "#F8F7FF", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "16px", fontFamily: "'Outfit', sans-serif" }}>
+        <div className="ob-card">
           <AuthLogo />
           <AuthSubtitle text="Your Details" />
-
           <OnboardingProgress currentStep={step} />
 
           {/* STEP 1: Profession */}
@@ -386,7 +387,7 @@ export default function OnboardingPage() {
 
               <div style={{ fontSize: "10.5px", fontWeight: 700, color: "#8B87A8", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: "10px" }}>Popular professions</div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "7px", marginBottom: "10px" }}>
+              <div className="ob-prof-grid">
                 {professions.map((prof) => (
                   <ProfessionCard
                     key={prof.name}
@@ -414,17 +415,15 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* Selected profession preview */}
               <div style={{ background: "#EEF0FD", border: "1px solid #C7C3F8", borderRadius: "10px", padding: "11px 14px", marginTop: "12px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "20px" }}>{primaryEm}</span>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: "80px" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "#3C3489" }}>Primary profession</div>
                   <div style={{ fontSize: "13px", color: "#534AB7", fontWeight: 600 }}>{displayedPrimaryProf}</div>
                 </div>
-                <span style={{ display: "inline-flex", alignItems: "center", background: "#EEF0FD", color: "#3C3489", fontSize: "11px", fontWeight: 600, padding: "3px 9px", borderRadius: "999px", letterSpacing: ".01em" }}>Primary ✓</span>
+                <span style={{ display: "inline-flex", alignItems: "center", background: "#EEF0FD", color: "#3C3489", fontSize: "11px", fontWeight: 600, padding: "3px 9px", borderRadius: "999px", letterSpacing: ".01em", whiteSpace: "nowrap" }}>Primary ✓</span>
               </div>
 
-              {/* Additional Roles */}
               <div style={{ marginTop: "16px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
                   <div style={{ fontSize: "13px", fontWeight: 700, color: "#1A1635" }}>
@@ -447,7 +446,7 @@ export default function OnboardingPage() {
                 </div>
 
                 {additionalRoles.length < 2 ? (
-                  <button onClick={openAddRoleModal} className="ob-btn-ghost">
+                  <button onClick={openAddRoleModal} className="ob-btn-ghost" style={{ width: "auto" }}>
                     + Add additional role
                   </button>
                 ) : (
@@ -455,7 +454,7 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "18px", flexWrap: "wrap" }}>
+              <div className="ob-btn-row" style={{ marginTop: "18px" }}>
                 <button className="ob-btn-ghost" onClick={goToDashboard}>Skip for now</button>
                 <button className="ob-btn-primary" onClick={() => setStep(2)}>Next: Income type →</button>
               </div>
@@ -468,7 +467,7 @@ export default function OnboardingPage() {
               <div style={{ fontSize: "18px", fontWeight: 700, color: "#1A1635", marginBottom: "3px", letterSpacing: "-0.3px" }}>What's your income type?</div>
               <div style={{ fontSize: "13px", color: "#8B87A8", marginBottom: "16px" }}>Helps AI give better budgeting and savings advice.</div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+              <div className="ob-income-grid">
                 {incomes.map((inc) => (
                   <IncomeCard
                     key={inc.label}
@@ -484,9 +483,9 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: "8px", justifyContent: "space-between", flexWrap: "wrap" }}>
+              <div className="ob-btn-row">
                 <button className="ob-btn-ghost" onClick={() => setStep(1)}>← Back</button>
-                <div style={{ display: "flex", gap: "7px", flexWrap: "wrap" }}>
+                <div className="ob-btn-right-group">
                   <button className="ob-btn-ghost" onClick={goToDashboard}>Skip for now</button>
                   <button className="ob-btn-primary" onClick={() => setStep(3)}>Next: Currency →</button>
                 </div>
@@ -512,7 +511,7 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", maxHeight: "220px", overflowY: "auto", paddingRight: "2px" }}>
+              <div className="ob-curr-grid">
                 {filteredCurrencies ? (
                   filteredCurrencies.map(c => (
                     <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
@@ -523,27 +522,22 @@ export default function OnboardingPage() {
                     {popularCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-
                     <div className="curr-section-hdr">🌏 Asia Pacific</div>
                     {asiaPacificCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-
                     <div className="curr-section-hdr">🕌 Middle East</div>
                     {middleEastCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-
                     <div className="curr-section-hdr">🌍 Africa</div>
                     {africaCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-
                     <div className="curr-section-hdr">🌎 Americas</div>
                     {americasCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-
                     <div className="curr-section-hdr">🌐 Europe</div>
                     {europeCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
@@ -552,19 +546,19 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              <div style={{ display: "flex", gap: "8px", justifyContent: "space-between", marginTop: "16px", flexWrap: "wrap" }}>
+              <div className="ob-btn-row" style={{ marginTop: "16px" }}>
                 <button className="ob-btn-ghost" onClick={() => setStep(2)}>← Back</button>
                 <button
                   onClick={handleFinishOnboarding}
                   disabled={loading}
-                  className="ob-btn-primary"
+                  className="ob-btn-primary ob-finish-btn"
                   style={{ flex: 1, maxWidth: "220px" }}
                 >
                   {loading ? "Saving..." : "🚀 Go to Dashboard →"}
                 </button>
               </div>
 
-              {error && <p className="text-red-500 text-center mt-4">{error}</p>}
+              {error && <p style={{ color: "#ef4444", textAlign: "center", marginTop: "16px", fontSize: "13px" }}>{error}</p>}
             </div>
           )}
         </div>
@@ -576,13 +570,13 @@ export default function OnboardingPage() {
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
           onClick={e => { if (e.target === e.currentTarget) closeAddRoleModal(); }}
         >
-          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "480px", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(91,79,232,0.18)" }}>
+          <div style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "480px", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(91,79,232,0.18)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1635" }}>Add an additional role</div>
               <button onClick={closeAddRoleModal} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#8B87A8", lineHeight: 1 }}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "7px", marginBottom: "12px" }}>
+            <div className="ob-modal-grid">
               {availableModalProfs.map(p => (
                 <div
                   key={p.name}
@@ -616,12 +610,12 @@ export default function OnboardingPage() {
             )}
 
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button className="ob-btn-ghost" onClick={closeAddRoleModal}>Cancel</button>
+              <button className="ob-btn-ghost" onClick={closeAddRoleModal} style={{ width: "auto" }}>Cancel</button>
               <button
                 className="ob-btn-primary"
                 onClick={confirmAddRole}
                 disabled={!modalCanConfirm}
-                style={{ opacity: modalCanConfirm ? 1 : 0.5 }}
+                style={{ opacity: modalCanConfirm ? 1 : 0.5, width: "auto" }}
               >
                 Add role
               </button>
