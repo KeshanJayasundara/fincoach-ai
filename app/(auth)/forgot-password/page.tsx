@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { verifyOTP as verifyOTPAction } from "@/actions/auth";   // ← Import කරන්න
+import { verifyOTP as verifyOTPAction } from "@/actions/auth";
 
 import AuthLogo from "@/components/auth/AuthLogo";
 import AuthButton from "@/components/auth/AuthButton";
@@ -10,7 +10,7 @@ import OTPInput from "@/components/auth/OTPInput";
 import PasswordInput from "@/components/auth/PasswordInput";
 
 export default function ForgotPasswordPage() {
-  const [step, setStep] = useState(1); // 1=Email, 2=OTP, 3=New Password, 4=Success
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [password, setPassword] = useState("");
@@ -20,7 +20,6 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // OTP Timer
   useEffect(() => {
     if (step === 2 && timer > 0) {
       const interval = setInterval(() => {
@@ -36,7 +35,6 @@ export default function ForgotPasswordPage() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  // Step 1: Send OTP
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
@@ -56,7 +54,6 @@ export default function ForgotPasswordPage() {
       if (res.ok) {
         setStep(2);
         setTimer(600);
-        setError("");
       } else {
         setError(data.error || "Failed to send OTP");
       }
@@ -66,7 +63,6 @@ export default function ForgotPasswordPage() {
     setLoading(false);
   };
 
-  // Step 2: Verify OTP (Fixed with Backend)
   const verifyOTP = async () => {
     const code = otp.join("");
     if (code.length !== 6) {
@@ -84,13 +80,11 @@ export default function ForgotPasswordPage() {
       setError("");
     } else {
       setError(result.error || "Invalid OTP. Please try again.");
-      setOtp(["", "", "", "", "", ""]); // Clear wrong OTP
+      setOtp(["", "", "", "", "", ""]);
     }
-
     setLoading(false);
   };
 
-  // Step 3: Reset Password
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -105,8 +99,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError("");
 
+    const code = otp.join("");
+
     try {
-      const code = otp.join(""); // Use the verified OTP
       const res = await fetch("/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,11 +112,12 @@ export default function ForgotPasswordPage() {
 
       if (res.ok) {
         setStep(4);
+        setError("");
       } else {
         setError(data.error || "Failed to reset password");
       }
     } catch (err) {
-      setError("Something went wrong");
+      setError("Something went wrong. Please try again.");
     }
     setLoading(false);
   };
@@ -138,7 +134,6 @@ export default function ForgotPasswordPage() {
           <AuthLogo />
           <p className="text-center text-[#8B87A8] mt-2">Password Recovery</p>
 
-          {/* Progress Bar */}
           <div className="flex items-center justify-between text-xs mb-8 mt-6">
             <div className={`flex items-center gap-1.5 ${step >= 1 ? 'text-[#5B4FE8]' : 'text-gray-400'}`}>
               <div className="w-6 h-6 bg-[#5B4FE8] text-white rounded-full flex items-center justify-center text-[11px] font-bold">1</div>
@@ -163,14 +158,12 @@ export default function ForgotPasswordPage() {
             {step === 4 ? "You can now sign in with your new password." : "We'll send you a reset code"}
           </p>
 
-          {/* Error Message */}
           {error && (
             <p className="text-red-500 text-sm text-center bg-red-50 border border-red-200 py-2 rounded-lg mb-4">
               {error}
             </p>
           )}
 
-          {/* Step 1: Email */}
           {step === 1 && (
             <form onSubmit={handleSendCode} className="space-y-4">
               <input
@@ -178,7 +171,7 @@ export default function ForgotPasswordPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-[#d1ccff] rounded-lg bg-[#f8f7ff] text-sm text-[#1a1635] placeholder:text-[#c4c1dc]"
+                className="w-full px-3 py-2.5 border border-[#d1ccff] rounded-lg bg-[#f8f7ff] text-sm text-[#1a1635]"
                 required
               />
               <AuthButton loading={loading}>
@@ -187,7 +180,6 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          {/* Step 2: OTP */}
           {step === 2 && (
             <div className="text-center">
               <div className="mb-6">
@@ -205,17 +197,9 @@ export default function ForgotPasswordPage() {
               <AuthButton loading={loading} onClick={verifyOTP} disabled={otp.join("").length !== 6}>
                 Verify Code →
               </AuthButton>
-
-              <button 
-                onClick={() => setStep(1)} 
-                className="text-[#5B4FE8] text-sm mt-4 w-full"
-              >
-                ← Change Email
-              </button>
             </div>
           )}
 
-          {/* Step 3: New Password */}
           {step === 3 && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
@@ -233,7 +217,6 @@ export default function ForgotPasswordPage() {
             </form>
           )}
 
-          {/* Step 4: Success */}
           {step === 4 && (
             <div className="text-center py-8">
               <div className="text-6xl mb-4">🎉</div>
