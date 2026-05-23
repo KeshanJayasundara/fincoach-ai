@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Search, MoreHorizontal } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Search, MoreHorizontal, ChevronDown, X, Check } from "lucide-react";
 import { getTransactions, deleteTransaction } from "@/actions/transactions";
 import {
   TransactionType,
@@ -10,9 +10,11 @@ import {
   ExpenseCategoriesList,
 } from "@/lib/enums";
 
+/* ─────────────────────────────────────────────────────── */
+/*  ICON + BADGE MAPS (unchanged)                          */
+/* ─────────────────────────────────────────────────────── */
 const getCategoryIcon = (category: TransactionCategory | string): { icon: string; bg: string } => {
   const icons: Partial<Record<TransactionCategory, { icon: string; bg: string }>> = {
-    // 💰 Income
     [TransactionCategory.SalaryIncome]:       { icon: "💼", bg: "#DCFCE7" },
     [TransactionCategory.FreelanceIncome]:    { icon: "💻", bg: "#DBEAFE" },
     [TransactionCategory.BusinessIncome]:     { icon: "🏢", bg: "#D1FAE5" },
@@ -26,85 +28,61 @@ const getCategoryIcon = (category: TransactionCategory | string): { icon: string
     [TransactionCategory.GiftReceived]:       { icon: "🎀", bg: "#FCE7F3" },
     [TransactionCategory.Refund]:             { icon: "↩️", bg: "#DCFCE7" },
     [TransactionCategory.OtherIncome]:        { icon: "💰", bg: "#F3E8FF" },
-
-    // 🛒 Food & Drink
     [TransactionCategory.FoodGrocery]:        { icon: "🛒", bg: "#FEF3C7" },
     [TransactionCategory.DiningOut]:          { icon: "🍕", bg: "#EEF0FD" },
     [TransactionCategory.CoffeeSnacks]:       { icon: "☕", bg: "#FEF3C7" },
     [TransactionCategory.Takeaway]:           { icon: "🥡", bg: "#FEE2E2" },
     [TransactionCategory.Alcohol]:            { icon: "🍺", bg: "#FEF9C3" },
-
-    // 🏠 Housing
     [TransactionCategory.Rent]:               { icon: "🏠", bg: "#DBEAFE" },
     [TransactionCategory.Utilities]:          { icon: "⚡", bg: "#FEE2E2" },
     [TransactionCategory.Internet]:           { icon: "📶", bg: "#EDE9FE" },
     [TransactionCategory.HomeMaintenance]:    { icon: "🔧", bg: "#FEF3C7" },
     [TransactionCategory.HomeInsurance]:      { icon: "🛡️", bg: "#DBEAFE" },
     [TransactionCategory.Furniture]:          { icon: "🛋️", bg: "#F3E8FF" },
-
-    // 🚗 Transport
     [TransactionCategory.Transport]:          { icon: "🚗", bg: "#FEF9C3" },
     [TransactionCategory.FuelParking]:        { icon: "⛽", bg: "#FEE2E2" },
     [TransactionCategory.PublicTransport]:    { icon: "🚌", bg: "#DBEAFE" },
     [TransactionCategory.Taxi]:               { icon: "🚕", bg: "#FEF3C7" },
     [TransactionCategory.VehicleMaintenance]: { icon: "🔩", bg: "#F3E8FF" },
     [TransactionCategory.VehicleInsurance]:   { icon: "🛡️", bg: "#DBEAFE" },
-
-    // 🏥 Health
     [TransactionCategory.HealthMedical]:      { icon: "🏥", bg: "#E0E7FF" },
     [TransactionCategory.Pharmacy]:           { icon: "💊", bg: "#FEE2E2" },
     [TransactionCategory.Gym]:                { icon: "💪", bg: "#DCFCE7" },
     [TransactionCategory.MentalHealth]:       { icon: "🧠", bg: "#EDE9FE" },
     [TransactionCategory.DentalVision]:       { icon: "🦷", bg: "#DBEAFE" },
     [TransactionCategory.HealthInsurance]:    { icon: "🛡️", bg: "#D1FAE5" },
-
-    // 🎓 Education
     [TransactionCategory.Education]:          { icon: "📚", bg: "#DBEAFE" },
     [TransactionCategory.Tuition]:            { icon: "🎓", bg: "#EDE9FE" },
     [TransactionCategory.BooksSupplies]:      { icon: "📖", bg: "#FEF3C7" },
     [TransactionCategory.OnlineLearning]:     { icon: "💡", bg: "#DBEAFE" },
-
-    // 🎬 Entertainment
     [TransactionCategory.Entertainment]:      { icon: "🎬", bg: "#EDE9FE" },
     [TransactionCategory.Streaming]:          { icon: "📺", bg: "#FEE2E2" },
     [TransactionCategory.Gaming]:             { icon: "🎮", bg: "#EEF0FD" },
     [TransactionCategory.HobbiesLeisure]:     { icon: "🎨", bg: "#FCE7F3" },
     [TransactionCategory.Events]:             { icon: "🎟️", bg: "#FEF3C7" },
-
-    // 🛍️ Shopping
     [TransactionCategory.Shopping]:           { icon: "🛍️", bg: "#FCE7F3" },
     [TransactionCategory.Clothing]:           { icon: "👗", bg: "#EDE9FE" },
     [TransactionCategory.Electronics]:        { icon: "📱", bg: "#DBEAFE" },
     [TransactionCategory.PersonalCare]:       { icon: "💄", bg: "#FCE7F3" },
     [TransactionCategory.GiftGiven]:          { icon: "🎁", bg: "#FEF3C7" },
-
-    // ✈️ Travel
     [TransactionCategory.Travel]:             { icon: "✈️", bg: "#DBEAFE" },
     [TransactionCategory.Flights]:            { icon: "🛫", bg: "#EDE9FE" },
     [TransactionCategory.Hotels]:             { icon: "🏨", bg: "#FEF9C3" },
     [TransactionCategory.TravelActivities]:   { icon: "🗺️", bg: "#DCFCE7" },
-
-    // 💼 Business
     [TransactionCategory.BusinessExpense]:    { icon: "💼", bg: "#DBEAFE" },
     [TransactionCategory.SoftwareTools]:      { icon: "🖥️", bg: "#EDE9FE" },
     [TransactionCategory.Marketing]:          { icon: "📣", bg: "#FEE2E2" },
     [TransactionCategory.OfficeSupplies]:     { icon: "🖊️", bg: "#FEF3C7" },
     [TransactionCategory.ProfessionalFees]:   { icon: "⚖️", bg: "#DBEAFE" },
-
-    // 💳 Finance
     [TransactionCategory.LoanRepayment]:      { icon: "🏦", bg: "#FEE2E2" },
     [TransactionCategory.CreditCardBill]:     { icon: "💳", bg: "#FEE2E2" },
     [TransactionCategory.BankFees]:           { icon: "🏧", bg: "#FEF3C7" },
     [TransactionCategory.Taxes]:              { icon: "📋", bg: "#FEE2E2" },
     [TransactionCategory.Savings]:            { icon: "🐷", bg: "#DCFCE7" },
     [TransactionCategory.Charity]:            { icon: "❤️", bg: "#FCE7F3" },
-
-    // 👶 Family
     [TransactionCategory.Childcare]:          { icon: "👶", bg: "#FEF9C3" },
     [TransactionCategory.PetCare]:            { icon: "🐾", bg: "#DCFCE7" },
     [TransactionCategory.FamilySupport]:      { icon: "👨‍👩‍👧", bg: "#DBEAFE" },
-
-    // 📦 Other
     [TransactionCategory.Other]:              { icon: "📄", bg: "#F3E8FF" },
   };
   return icons[category as TransactionCategory] || { icon: "📄", bg: "#F3E8FF" };
@@ -112,7 +90,6 @@ const getCategoryIcon = (category: TransactionCategory | string): { icon: string
 
 const getCategoryBadge = (category: TransactionCategory | string): { label: string; bg: string; color: string } => {
   const badges: Partial<Record<TransactionCategory, { label: string; bg: string; color: string }>> = {
-    // 💰 Income
     [TransactionCategory.SalaryIncome]:       { label: "Salary",      bg: "#DCFCE7", color: "#14532D" },
     [TransactionCategory.FreelanceIncome]:    { label: "Freelance",   bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.BusinessIncome]:     { label: "Business",    bg: "#D1FAE5", color: "#064E3B" },
@@ -126,101 +103,227 @@ const getCategoryBadge = (category: TransactionCategory | string): { label: stri
     [TransactionCategory.GiftReceived]:       { label: "Gift",        bg: "#FCE7F3", color: "#831843" },
     [TransactionCategory.Refund]:             { label: "Refund",      bg: "#DCFCE7", color: "#14532D" },
     [TransactionCategory.OtherIncome]:        { label: "Income",      bg: "#DCFCE7", color: "#14532D" },
-
-    // 🛒 Food
     [TransactionCategory.FoodGrocery]:        { label: "Grocery",     bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.DiningOut]:          { label: "Dining",      bg: "#EEF0FD", color: "#3C3489" },
     [TransactionCategory.CoffeeSnacks]:       { label: "Coffee",      bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.Takeaway]:           { label: "Takeaway",    bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Alcohol]:            { label: "Alcohol",     bg: "#FEF9C3", color: "#713F12" },
-
-    // 🏠 Housing
     [TransactionCategory.Rent]:               { label: "Rent",        bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.Utilities]:          { label: "Utilities",   bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Internet]:           { label: "Internet",    bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.HomeMaintenance]:    { label: "Maintenance", bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.HomeInsurance]:      { label: "Insurance",   bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.Furniture]:          { label: "Furniture",   bg: "#F3E8FF", color: "#4A4568" },
-
-    // 🚗 Transport
     [TransactionCategory.Transport]:          { label: "Transport",   bg: "#FEF9C3", color: "#713F12" },
     [TransactionCategory.FuelParking]:        { label: "Fuel",        bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.PublicTransport]:    { label: "Public",      bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.Taxi]:               { label: "Taxi",        bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.VehicleMaintenance]: { label: "Vehicle",     bg: "#F3E8FF", color: "#4A4568" },
     [TransactionCategory.VehicleInsurance]:   { label: "Insurance",   bg: "#DBEAFE", color: "#1E3A8A" },
-
-    // 🏥 Health
     [TransactionCategory.HealthMedical]:      { label: "Medical",     bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Pharmacy]:           { label: "Pharmacy",    bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Gym]:                { label: "Gym",         bg: "#DCFCE7", color: "#14532D" },
     [TransactionCategory.MentalHealth]:       { label: "Mental",      bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.DentalVision]:       { label: "Dental",      bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.HealthInsurance]:    { label: "Insurance",   bg: "#D1FAE5", color: "#064E3B" },
-
-    // 🎓 Education
     [TransactionCategory.Education]:          { label: "Education",   bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.Tuition]:            { label: "Tuition",     bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.BooksSupplies]:      { label: "Books",       bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.OnlineLearning]:     { label: "Online",      bg: "#DBEAFE", color: "#1E3A8A" },
-
-    // 🎬 Entertainment
     [TransactionCategory.Entertainment]:      { label: "Fun",         bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.Streaming]:          { label: "Streaming",   bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Gaming]:             { label: "Gaming",      bg: "#EEF0FD", color: "#3C3489" },
     [TransactionCategory.HobbiesLeisure]:     { label: "Hobbies",     bg: "#FCE7F3", color: "#831843" },
     [TransactionCategory.Events]:             { label: "Events",      bg: "#FEF3C7", color: "#78350F" },
-
-    // 🛍️ Shopping
     [TransactionCategory.Shopping]:           { label: "Shopping",    bg: "#FCE7F3", color: "#831843" },
     [TransactionCategory.Clothing]:           { label: "Clothing",    bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.Electronics]:        { label: "Electronics", bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.PersonalCare]:       { label: "Beauty",      bg: "#FCE7F3", color: "#831843" },
     [TransactionCategory.GiftGiven]:          { label: "Gift",        bg: "#FEF3C7", color: "#78350F" },
-
-    // ✈️ Travel
     [TransactionCategory.Travel]:             { label: "Travel",      bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.Flights]:            { label: "Flights",     bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.Hotels]:             { label: "Hotels",      bg: "#FEF9C3", color: "#713F12" },
     [TransactionCategory.TravelActivities]:   { label: "Activities",  bg: "#DCFCE7", color: "#14532D" },
-
-    // 💼 Business
     [TransactionCategory.BusinessExpense]:    { label: "Business",    bg: "#DBEAFE", color: "#1E3A8A" },
     [TransactionCategory.SoftwareTools]:      { label: "Software",    bg: "#EDE9FE", color: "#4C1D95" },
     [TransactionCategory.Marketing]:          { label: "Marketing",   bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.OfficeSupplies]:     { label: "Office",      bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.ProfessionalFees]:   { label: "Pro Fees",    bg: "#DBEAFE", color: "#1E3A8A" },
-
-    // 💳 Finance
     [TransactionCategory.LoanRepayment]:      { label: "Loan",        bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.CreditCardBill]:     { label: "Credit",      bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.BankFees]:           { label: "Bank Fee",    bg: "#FEF3C7", color: "#78350F" },
     [TransactionCategory.Taxes]:              { label: "Tax",         bg: "#FEE2E2", color: "#7F1D1D" },
     [TransactionCategory.Savings]:            { label: "Savings",     bg: "#DCFCE7", color: "#14532D" },
     [TransactionCategory.Charity]:            { label: "Charity",     bg: "#FCE7F3", color: "#831843" },
-
-    // 👶 Family
     [TransactionCategory.Childcare]:          { label: "Childcare",   bg: "#FEF9C3", color: "#713F12" },
     [TransactionCategory.PetCare]:            { label: "Pet",         bg: "#DCFCE7", color: "#14532D" },
     [TransactionCategory.FamilySupport]:      { label: "Family",      bg: "#DBEAFE", color: "#1E3A8A" },
-
-    // 📦 Other
     [TransactionCategory.Other]:              { label: "Other",       bg: "#F3E8FF", color: "#4A4568" },
   };
   return badges[category as TransactionCategory] || { label: "Other", bg: "#F3E8FF", color: "#4A4568" };
 };
 
-export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<"all" | TransactionType>("all");
-  const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
-  const [filterMonth, setFilterMonth] = useState("all");
-  const [loading, setLoading] = useState(true);
+/* ─────────────────────────────────────────────────────── */
+/*  SEARCHABLE CATEGORY FILTER DROPDOWN                    */
+/* ─────────────────────────────────────────────────────── */
+interface FilterCategoryDropdownProps {
+  categories: (TransactionCategory | string)[];
+  value: "all" | TransactionCategory;
+  onChange: (val: "all" | TransactionCategory) => void;
+  filterType: "all" | TransactionType;
+}
 
+function FilterCategoryDropdown({ categories, value, onChange, filterType }: FilterCategoryDropdownProps) {
+  const [open, setOpen]     = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef        = useRef<HTMLDivElement>(null);
+  const searchRef           = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
   useEffect(() => {
-    loadTransactions();
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Focus search when opened
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [open]);
+
+  const filtered = categories.filter((cat) =>
+    cat.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Badge colour for the type context indicator
+  const isIncome  = filterType === TransactionType.Income;
+  const isExpense = filterType === TransactionType.Expense;
+  const typeLabel = isIncome ? "Income" : isExpense ? "Expense" : "All";
+  const typeBg    = isIncome ? "#DCFCE7" : isExpense ? "#FEE2E2" : "#EEF0FD";
+  const typeColor = isIncome ? "#14532D" : isExpense ? "#7F1D1D" : "#3C3489";
+  const typeEmoji = isIncome ? "🟢" : isExpense ? "🔴" : "🔵";
+
+  const displayLabel = value === "all" ? "All categories" : value;
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`w-full flex items-center justify-between px-3 py-2 text-[12px] font-medium border rounded-lg bg-white transition-colors outline-none cursor-pointer ${
+          open ? "border-[#5B4FE8]" : "border-[#D1CCFF]"
+        } ${value !== "all" ? "text-[#1A1635]" : "text-[#4A4568]"}`}
+      >
+        <span className="truncate">{displayLabel}</span>
+        <ChevronDown
+          size={13}
+          className={`text-[#8B87A8] shrink-0 ml-1 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute z-50 mt-1.5 w-full min-w-55 bg-white border border-[#D1CCFF] rounded-xl shadow-lg overflow-hidden">
+
+          {/* Active filter type badge */}
+          <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2 border-b border-[#EAE8FB]">
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
+              style={{ background: typeBg, color: typeColor }}
+            >
+              {typeEmoji} {typeLabel} categories
+            </span>
+            <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
+          </div>
+
+          {/* Search bar */}
+          <div className="px-3 py-2 border-b border-[#EAE8FB]">
+            <div className="flex items-center gap-2 bg-[#F8F7FF] rounded-lg px-2.5 py-1.5">
+              <Search size={12} className="text-[#8B87A8] shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search categories…"
+                className="flex-1 bg-transparent text-[12px] text-[#1A1635] placeholder:text-[#C4C0DC] outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="text-[#8B87A8] hover:text-[#4A4568]">
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <ul className="max-h-48 overflow-y-auto py-1">
+            {/* "All categories" option */}
+            <li>
+              <button
+                type="button"
+                onClick={() => { onChange("all"); setOpen(false); setSearch(""); }}
+                className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
+                  value === "all"
+                    ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
+                    : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                }`}
+              >
+                All categories
+                {value === "all" && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
+              </button>
+            </li>
+
+            {filtered.length > 0 ? (
+              filtered.map((cat) => (
+                <li key={cat}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(cat as TransactionCategory); setOpen(false); setSearch(""); }}
+                    className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
+                      value === cat
+                        ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
+                        : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-base leading-none">{getCategoryIcon(cat).icon}</span>
+                      {cat}
+                    </span>
+                    {value === cat && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="px-3 py-4 text-center text-[11px] text-[#8B87A8]">
+                No categories match &quot;{search}&quot;
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────── */
+/*  PAGE                                                   */
+/* ─────────────────────────────────────────────────────── */
+export default function TransactionsPage() {
+  const [transactions, setTransactions]     = useState<any[]>([]);
+  const [searchTerm, setSearchTerm]         = useState("");
+  const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
+  const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
+  const [filterMonth, setFilterMonth]       = useState("all");
+  const [loading, setLoading]               = useState(true);
+
+  useEffect(() => { loadTransactions(); }, []);
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -233,7 +336,7 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // ✅ Type අනුව categories dynamically වෙනස් වෙනවා
+  // Category list changes based on selected type (same logic as AddTransactionModal)
   const visibleCategories = useMemo(() => {
     if (filterType === TransactionType.Income)  return IncomeCategoriesList;
     if (filterType === TransactionType.Expense) return ExpenseCategoriesList;
@@ -246,7 +349,7 @@ export default function TransactionsPage() {
         tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tx.category.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .filter(tx => filterType === "all"     || tx.type     === filterType)
+      .filter(tx => filterType     === "all" || tx.type     === filterType)
       .filter(tx => filterCategory === "all" || tx.category === filterCategory)
       .filter(tx => {
         if (filterMonth === "all") return true;
@@ -254,8 +357,8 @@ export default function TransactionsPage() {
       });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  const totalIncome  = transactions.filter(t => t.type === TransactionType.Income).reduce((sum, t)  => sum + t.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === TransactionType.Expense).reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome  = transactions.filter(t => t.type === TransactionType.Income).reduce((s, t)  => s + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this transaction?")) return;
@@ -321,15 +424,15 @@ export default function TransactionsPage() {
             />
           </div>
 
-          {/* Dropdowns */}
+          {/* Type + Category + Month */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
 
-            {/* Type — TransactionType enum */}
+            {/* Type — plain select (short list, no search needed) */}
             <select
               value={filterType}
               onChange={(e) => {
                 setFilterType(e.target.value as "all" | TransactionType);
-                setFilterCategory("all"); // type වෙනස් වුණාම category reset
+                setFilterCategory("all");
               }}
               className="w-full px-3 py-2 text-[12px] border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none cursor-pointer font-medium text-[#4A4568]"
             >
@@ -341,19 +444,15 @@ export default function TransactionsPage() {
               ))}
             </select>
 
-            {/* Category — type අනුව dynamically filter වෙනවා */}
-            <select
+            {/* Category — searchable custom dropdown */}
+            <FilterCategoryDropdown
+              categories={visibleCategories}
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value as "all" | TransactionCategory)}
-              className="w-full px-3 py-2 text-[12px] border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none cursor-pointer font-medium text-[#4A4568]"
-            >
-              <option value="all">All categories</option>
-              {visibleCategories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              onChange={setFilterCategory}
+              filterType={filterType}
+            />
 
-            {/* Month */}
+            {/* Month — plain select */}
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
@@ -383,17 +482,9 @@ export default function TransactionsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-10 text-center text-[13px] text-[#8B87A8]">
-                    Loading...
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="py-10 text-center text-[13px] text-[#8B87A8]">Loading...</td></tr>
               ) : filteredTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-10 text-center text-[13px] text-[#8B87A8]">
-                    No transactions found
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="py-10 text-center text-[13px] text-[#8B87A8]">No transactions found</td></tr>
               ) : (
                 filteredTransactions.map((tx) => {
                   const { icon, bg } = getCategoryIcon(tx.category);
@@ -402,45 +493,28 @@ export default function TransactionsPage() {
                     <tr key={tx.id} className="border-b border-[#EAE8FB] hover:bg-[#F8F7FF] transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0"
-                            style={{ background: bg }}
-                          >
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: bg }}>
                             {icon}
                           </div>
                           <div>
-                            <div className="text-[13px] font-semibold text-[#1A1635]">
-                              {tx.description || tx.category}
-                            </div>
+                            <div className="text-[13px] font-semibold text-[#1A1635]">{tx.description || tx.category}</div>
                             <div className="text-[11px] text-[#8B87A8]">{tx.category}</div>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span
-                          className="inline-flex items-center px-2 py-1 text-[11px] font-semibold rounded-full"
-                          style={{ background: badge.bg, color: badge.color }}
-                        >
+                        <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold rounded-full" style={{ background: badge.bg, color: badge.color }}>
                           {badge.label}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-[12px] text-[#8B87A8]">
-                        {new Date(tx.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(tx.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </td>
-                      <td className={`py-3 px-4 text-right text-[13px] font-semibold font-mono ${
-                        tx.type === TransactionType.Income ? "text-[#16A34A]" : "text-[#DC2626]"
-                      }`}>
+                      <td className={`py-3 px-4 text-right text-[13px] font-semibold font-mono ${tx.type === TransactionType.Income ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
                         {tx.type === TransactionType.Income ? "+" : "-"}LKR {tx.amount.toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={() => handleDelete(tx.id)}
-                          className="p-1.5 text-[#8B87A8] hover:text-red-600 rounded-lg hover:bg-[#F8F7FF]"
-                        >
+                        <button onClick={() => handleDelete(tx.id)} className="p-1.5 text-[#8B87A8] hover:text-red-600 rounded-lg hover:bg-[#F8F7FF]">
                           <MoreHorizontal size={14} />
                         </button>
                       </td>
@@ -452,7 +526,6 @@ export default function TransactionsPage() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }

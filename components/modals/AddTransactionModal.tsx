@@ -1,8 +1,8 @@
 // components/modals/AddTransactionModal.tsx
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { X, PenLine, Camera, Upload, ChevronDown, Check, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { X, PenLine, Camera, Upload, ChevronDown, Check, Loader2, Search } from "lucide-react";
 import { addTransaction } from "@/actions/transactions";
 import {
   TransactionType,
@@ -37,7 +37,7 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess }: AddT
       <div className="relative w-full sm:max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[92dvh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-[#1A1635]">Add Transaction</h2>
             <p className="text-[11px] text-[#8B87A8] mt-0.5">Choose how to add your transaction</p>
@@ -51,7 +51,7 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess }: AddT
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] flex-shrink-0">
+        <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] shrink-0">
           {(["manual", "scan", "import"] as Tab[]).map((tab) => {
             const config = {
               manual: { icon: PenLine, label: "Manual" },
@@ -83,6 +83,154 @@ export default function AddTransactionModal({ isOpen, onClose, onSuccess }: AddT
           {activeTab === "import" && <ImportTab onClose={onClose} onSuccess={onSuccess} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────── */
+/*  SEARCHABLE CATEGORY DROPDOWN                           */
+/* ─────────────────────────────────────────────────────── */
+interface CategoryDropdownProps {
+  categories: TransactionCategory[];
+  value: TransactionCategory | "";
+  onChange: (val: TransactionCategory | "") => void;
+  transactionType: TransactionType;
+}
+
+function CategoryDropdown({ categories, value, onChange, transactionType }: CategoryDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [open]);
+
+  // Reset selection when type changes
+  useEffect(() => {
+    onChange("");
+    setSearch("");
+  }, [transactionType]);
+
+  const filtered = categories.filter((cat) =>
+    cat.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const isExpense = transactionType === TransactionType.Expense;
+  const accentColor = isExpense ? "#DC2626" : "#16A34A";
+  const accentBg    = isExpense ? "#FEE2E2"  : "#DCFCE7";
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className={`w-full flex items-center justify-between px-3 py-2.5 text-[12px] font-medium border rounded-lg bg-white transition-colors outline-none ${
+          open ? "border-[#5B4FE8]" : "border-[#D1CCFF]"
+        } ${value ? "text-[#1A1635]" : "text-[#C4C0DC]"}`}
+      >
+        <span className="truncate">
+          {value ? (
+            <span className="flex items-center gap-2">
+              <span
+                className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{ background: accentBg, color: accentColor }}
+              >
+                {isExpense ? "Expense" : "Income"}
+              </span>
+              {value}
+            </span>
+          ) : (
+            "Select category…"
+          )}
+        </span>
+        <ChevronDown
+          size={13}
+          className={`text-[#8B87A8] shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <div className="absolute z-50 mt-1.5 w-full bg-white border border-[#D1CCFF] rounded-xl shadow-lg overflow-hidden">
+
+          {/* Type badge — shows which list is active */}
+          <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2 border-b border-[#EAE8FB]">
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
+              style={{ background: accentBg, color: accentColor }}
+            >
+              {isExpense ? "🔴" : "🟢"} {isExpense ? "Expense" : "Income"} categories
+            </span>
+            <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
+          </div>
+
+          {/* Search bar */}
+          <div className="px-3 py-2 border-b border-[#EAE8FB]">
+            <div className="flex items-center gap-2 bg-[#F8F7FF] rounded-lg px-2.5 py-1.5">
+              <Search size={12} className="text-[#8B87A8] shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search categories…"
+                className="flex-1 bg-transparent text-[12px] text-[#1A1635] placeholder:text-[#C4C0DC] outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="text-[#8B87A8] hover:text-[#4A4568]">
+                  <X size={11} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Category list */}
+          <ul className="max-h-44 overflow-y-auto py-1">
+            {filtered.length > 0 ? (
+              filtered.map((cat) => (
+                <li key={cat}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(cat);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
+                      value === cat
+                        ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
+                        : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                    }`}
+                  >
+                    {cat}
+                    {value === cat && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="px-3 py-4 text-center text-[11px] text-[#8B87A8]">
+                No categories match &quot;{search}&quot;
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -131,7 +279,7 @@ function ManualTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
 
       {/* Type Toggle */}
       <div>
-        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-[0.05em] mb-1.5 block">Type</label>
+        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Type</label>
         <div className="flex bg-[#F8F7FF] rounded-xl p-1 gap-1">
           {[TransactionType.Expense, TransactionType.Income].map((t) => (
             <button
@@ -153,12 +301,12 @@ function ManualTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
 
       {/* Amount + Currency */}
       <div>
-        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-[0.05em] mb-1.5 block">Amount</label>
+        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Amount</label>
         <div className="flex gap-2">
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as Currency)}
-            className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none text-[#4A4568] w-[80px]"
+            className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none text-[#4A4568] w-20"
           >
             {Object.values(Currency).map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -174,27 +322,22 @@ function ManualTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
         </div>
       </div>
 
-      {/* Category */}
+      {/* Category — searchable custom dropdown */}
       <div>
-        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-[0.05em] mb-1.5 block">Category</label>
-        <div className="relative">
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as TransactionCategory)}
-            className="w-full px-3 py-2.5 text-[12px] font-medium border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none text-[#4A4568] appearance-none pr-8"
-          >
-            <option value="">Select category…</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-          <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B87A8] pointer-events-none" />
-        </div>
+        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Category</label>
+        <CategoryDropdown
+          categories={categories}
+          value={category}
+          onChange={setCategory}
+          transactionType={type}
+        />
       </div>
 
       {/* Description */}
       <div>
-        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-[0.05em] mb-1.5 block">Description <span className="font-normal">(optional)</span></label>
+        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+          Description <span className="font-normal">(optional)</span>
+        </label>
         <input
           type="text"
           placeholder="e.g. Monthly rent payment"
@@ -206,7 +349,7 @@ function ManualTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
 
       {/* Date */}
       <div>
-        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-[0.05em] mb-1.5 block">Date</label>
+        <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Date</label>
         <input
           type="date"
           value={date}
@@ -249,7 +392,6 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
   const [scanned, setScanned] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Detect touch device to show helpful hint text
   const isTouchDevice = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
   const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -277,13 +419,6 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
 
   return (
     <div className="p-5 space-y-4">
-      {/*
-        No `capture` attribute = works on ALL devices:
-        - Desktop/laptop  → opens OS file picker (select any image file)
-        - Phone/tablet    → shows native "Take Photo / Choose from Gallery" sheet
-        position:fixed + opacity-0 + pointer-events-none takes it out of
-        the modal overflow stack so nothing blocks the picker from opening.
-      */}
       <input
         ref={inputRef}
         type="file"
@@ -313,14 +448,9 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
             </div>
           </div>
 
-          {/* Tips */}
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3 space-y-1.5">
             <div className="text-[11px] font-bold text-[#5B4FE8] mb-2">📸 Tips for best results</div>
-            {[
-              "Ensure good lighting",
-              "Keep the receipt flat",
-              "Capture the full receipt in frame",
-            ].map((tip) => (
+            {["Ensure good lighting", "Keep the receipt flat", "Capture the full receipt in frame"].map((tip) => (
               <div key={tip} className="flex items-center gap-2 text-[11px] text-[#4A4568]">
                 <div className="w-1 h-1 rounded-full bg-[#9B93F5]" />
                 {tip}
@@ -331,7 +461,7 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
       ) : !scanned ? (
         <>
           <div className="relative rounded-xl overflow-hidden border border-[#EAE8FB]">
-            <img src={preview} alt="Receipt" className="w-full object-cover max-h-[220px]" />
+            <img src={preview} alt="Receipt" className="w-full object-cover max-h-55" />
             <button
               onClick={() => setPreview(null)}
               className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-[#4A4568] border border-[#EAE8FB]"
@@ -344,11 +474,7 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
             disabled={scanning}
             className="w-full py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
           >
-            {scanning ? (
-              <><Loader2 size={13} className="animate-spin" /> Scanning receipt…</>
-            ) : (
-              <><Camera size={13} /> Scan Receipt</>
-            )}
+            {scanning ? <><Loader2 size={13} className="animate-spin" /> Scanning receipt…</> : <><Camera size={13} /> Scan Receipt</>}
           </button>
         </>
       ) : (
@@ -358,35 +484,14 @@ function ScanTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: () =
             <span className="text-[12px] font-semibold text-[#14532D]">Receipt scanned! Review the details below.</span>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Amount detected</span>
-              <span className="font-bold text-[#1A1635]">LKR 2,450.00</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Category suggested</span>
-              <span className="font-bold text-[#1A1635]">Food & Grocery</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Date detected</span>
-              <span className="font-bold text-[#1A1635]">
-                {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-            </div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">Amount detected</span><span className="font-bold text-[#1A1635]">LKR 2,450.00</span></div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">Category suggested</span><span className="font-bold text-[#1A1635]">Food & Grocery</span></div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">Date detected</span><span className="font-bold text-[#1A1635]">{new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span></div>
           </div>
           <p className="text-[11px] text-[#8B87A8]">AI scanning is coming soon. Review and confirm the detected values before saving.</p>
           <div className="flex gap-2">
-            <button
-              onClick={() => { setPreview(null); setScanned(false); }}
-              className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors"
-            >
-              Retake
-            </button>
-            <button
-              onClick={() => { onSuccess?.(); onClose(); }}
-              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors"
-            >
-              Confirm & Save
-            </button>
+            <button onClick={() => { setPreview(null); setScanned(false); }} className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors">Retake</button>
+            <button onClick={() => { onSuccess?.(); onClose(); }} className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors">Confirm & Save</button>
           </div>
         </div>
       )}
@@ -423,18 +528,13 @@ function ImportTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
     <div className="p-5 space-y-4">
       {!imported ? (
         <>
-          {/* Drop zone */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileRef.current?.click()}
             className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-              dragging
-                ? "border-[#5B4FE8] bg-[#F0EEFF]"
-                : file
-                ? "border-[#9B93F5] bg-[#F8F7FF]"
-                : "border-[#C7C3F8] hover:border-[#5B4FE8] hover:bg-[#F8F7FF]"
+              dragging ? "border-[#5B4FE8] bg-[#F0EEFF]" : file ? "border-[#9B93F5] bg-[#F8F7FF]" : "border-[#C7C3F8] hover:border-[#5B4FE8] hover:bg-[#F8F7FF]"
             }`}
           >
             <div className="w-14 h-14 rounded-2xl bg-[#EEF0FD] flex items-center justify-center">
@@ -454,41 +554,22 @@ function ImportTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
               )}
             </div>
           </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,.xls,.xlsx"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
-          />
+          <input ref={fileRef} type="file" accept=".csv,.xls,.xlsx" className="hidden" onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
 
-          {/* Supported formats */}
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3">
             <div className="text-[11px] font-bold text-[#5B4FE8] mb-2">📄 Supported formats</div>
             <div className="grid grid-cols-3 gap-2">
               {["CSV", "XLS", "XLSX"].map((fmt) => (
-                <div key={fmt} className="text-center py-1.5 bg-white border border-[#EAE8FB] rounded-lg text-[11px] font-semibold text-[#4A4568]">
-                  {fmt}
-                </div>
+                <div key={fmt} className="text-center py-1.5 bg-white border border-[#EAE8FB] rounded-lg text-[11px] font-semibold text-[#4A4568]">{fmt}</div>
               ))}
             </div>
             <p className="text-[10.5px] text-[#8B87A8] mt-2">Bank exports from most Sri Lankan banks are supported. Column headers like <span className="font-mono">date, amount, description</span> are auto-detected.</p>
           </div>
 
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors">
-              Cancel
-            </button>
-            <button
-              onClick={handleImport}
-              disabled={!file || importing}
-              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {importing ? (
-                <><Loader2 size={13} className="animate-spin" /> Importing…</>
-              ) : (
-                <><Upload size={13} /> Import File</>
-              )}
+            <button onClick={onClose} className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors">Cancel</button>
+            <button onClick={handleImport} disabled={!file || importing} className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              {importing ? <><Loader2 size={13} className="animate-spin" /> Importing…</> : <><Upload size={13} /> Import File</>}
             </button>
           </div>
         </>
@@ -499,23 +580,12 @@ function ImportTab({ onClose, onSuccess }: { onClose: () => void; onSuccess?: ()
             <span className="text-[12px] font-semibold text-[#14532D]">File imported successfully!</span>
           </div>
           <div className="space-y-3">
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">File</span>
-              <span className="font-bold text-[#1A1635] truncate max-w-[180px]">{file?.name}</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Transactions found</span>
-              <span className="font-bold text-[#1A1635]">24 rows</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Date range</span>
-              <span className="font-bold text-[#1A1635]">Jan – May 2025</span>
-            </div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">File</span><span className="font-bold text-[#1A1635] truncate max-w-45">{file?.name}</span></div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">Transactions found</span><span className="font-bold text-[#1A1635]">24 rows</span></div>
+            <div className="flex justify-between text-[12px]"><span className="text-[#8B87A8]">Date range</span><span className="font-bold text-[#1A1635]">Jan – May 2025</span></div>
           </div>
           <p className="text-[11px] text-[#8B87A8]">Full CSV import processing is coming soon. The preview shows detected data from your file.</p>
-          <button onClick={() => { onSuccess?.(); onClose(); }} className="w-full py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors">
-            Done
-          </button>
+          <button onClick={() => { onSuccess?.(); onClose(); }} className="w-full py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors">Done</button>
         </div>
       )}
     </div>

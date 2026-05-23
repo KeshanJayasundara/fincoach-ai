@@ -1,4 +1,4 @@
-// middleware.ts
+// proxy.ts
 import { auth } from "./app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
 
@@ -6,9 +6,9 @@ export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
 
-  const isAuthPage = 
-    nextUrl.pathname.startsWith("/login") || 
-    nextUrl.pathname.startsWith("/register") || 
+  const isAuthPage =
+    nextUrl.pathname.startsWith("/login") ||
+    nextUrl.pathname.startsWith("/register") ||
     nextUrl.pathname.startsWith("/forgot-password");
 
   const isDashboardPage = nextUrl.pathname.startsWith("/dashboard");
@@ -30,6 +30,6 @@ export const config = {
     "/login",
     "/register",
     "/forgot-password",
-    "/onboarding"
+    "/onboarding",
   ],
 };
