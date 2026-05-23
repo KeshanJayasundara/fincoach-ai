@@ -29,12 +29,12 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   };
 
   const handleLogout = async () => {
-    onClose();
-    await signOut({ 
-      callbackUrl: "/",     // ← Redirect to Landing Page
-      redirect: true 
-    });
-  };
+  onClose();
+  await signOut({ 
+    callbackUrl: "/login",  // ← Changed from "/" to "/login"
+    redirect: true 
+  });
+};
 
   return (
     <>
