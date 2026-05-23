@@ -1,4 +1,3 @@
-// AppSidebar.tsx
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
@@ -31,12 +30,11 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
 
   const handleLogout = async () => {
     onClose();
-    await signOut({ callbackUrl: "/login", redirect: true });
+    await signOut({ redirectTo: "/login" });
   };
 
   return (
     <>
-      {/* ✅ Mobile overlay — darkens background when sidebar is open */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -44,12 +42,10 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
         />
       )}
 
-      {/* ✅ Sidebar — slides in on mobile, always visible on desktop */}
       <aside
         className={`w-55 bg-[#13102E] h-screen fixed left-0 top-0 flex flex-col z-50 transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        {/* Logo + mobile close button */}
         <div className="px-4 py-5 pb-5 border-b border-white/10 flex items-center justify-between">
           <div>
             <div className="text-base font-bold text-white tracking-tight">
@@ -57,7 +53,6 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
             </div>
             <div className="text-[10.5px] text-white/30 mt-0.5">AI Finance Manager</div>
           </div>
-          {/* ✅ Close button — only visible on mobile */}
           <button
             onClick={onClose}
             className="md:hidden text-white/40 hover:text-white/80 transition-colors"
@@ -66,7 +61,6 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           </button>
         </div>
 
-        {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-3">
           <div className="px-3 pb-1 pt-2 text-[10px] font-bold text-white/30 uppercase tracking-widest">Main</div>
 
@@ -109,7 +103,6 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           })}
         </div>
 
-        {/* Bottom Section */}
         <div className="mt-auto pt-2 pb-4 px-2 border-t border-white/10">
           <div className="bg-[#5B4FE8]/10 border border-[#5B4FE8]/30 rounded-2xl p-4 mx-2">
             <div className="text-xs font-semibold text-white/80">Free plan</div>
