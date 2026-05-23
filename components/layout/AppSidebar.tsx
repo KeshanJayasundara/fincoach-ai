@@ -30,8 +30,10 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
 
   const handleLogout = async () => {
     onClose();
-    await signOut({ callbackUrl: "/login", redirect: false });
-    window.location.href = "/login";
+    await signOut({ 
+      callbackUrl: "/",     // ← Redirect to Landing Page
+      redirect: true 
+    });
   };
 
   return (
@@ -47,6 +49,7 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
         className={`w-55 bg-[#13102E] h-screen fixed left-0 top-0 flex flex-col z-50 transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
+        {/* Logo + mobile close button */}
         <div className="px-4 py-5 pb-5 border-b border-white/10 flex items-center justify-between">
           <div>
             <div className="text-base font-bold text-white tracking-tight">
@@ -62,9 +65,9 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           </button>
         </div>
 
+        {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-3">
           <div className="px-3 pb-1 pt-2 text-[10px] font-bold text-white/30 uppercase tracking-widest">Main</div>
-
           {navItems.slice(0, 4).map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -84,7 +87,6 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           })}
 
           <div className="px-3 pb-1 pt-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">Finance</div>
-
           {navItems.slice(4, 7).map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -104,6 +106,7 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           })}
         </div>
 
+        {/* Bottom Section */}
         <div className="mt-auto pt-2 pb-4 px-2 border-t border-white/10">
           <div className="bg-[#5B4FE8]/10 border border-[#5B4FE8]/30 rounded-2xl p-4 mx-2">
             <div className="text-xs font-semibold text-white/80">Free plan</div>
