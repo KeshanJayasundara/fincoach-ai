@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, Pencil, Check, Loader2 } from "lucide-react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faTrash,
+  faPenToSquare,
+  faCheck,
+  faSpinner,
+  faRobot,
+  faBullseye,
+  faCircleExclamation,
+  faCircleCheck,
+  faLightbulb,
+  faPlus,
+} from "@fortawesome/free-solid-svg-icons";
 import { getGoals, updateGoalProgress, deleteGoal } from "@/actions/goals";
 
 const getStatusStyles = (progress: number) => {
@@ -23,7 +35,9 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-2xl z-10 w-full max-w-sm p-6">
-        <div className="text-4xl mb-3 text-center">🗑️</div>
+        <div className="flex items-center justify-center w-14 h-14 bg-red-50 rounded-full mx-auto mb-4">
+          <FontAwesomeIcon icon={faTrash} className="text-red-500 text-xl" />
+        </div>
         <h3 className="text-[15px] font-bold text-[#1A1635] text-center mb-2">Delete Goal</h3>
         <p className="text-[13px] text-[#8B87A8] text-center mb-6">{message}</p>
         <div className="flex gap-3">
@@ -85,8 +99,9 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: { goal: any; onClose:
         </div>
 
         <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB]">
-          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-semibold bg-white text-[#5B4FE8] shadow-sm border border-[#EAE8FB]">
-            📊 Savings Progress
+          <div className="flex-1 flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-[12px] font-semibold bg-white text-[#5B4FE8] shadow-sm border border-[#EAE8FB]">
+            <FontAwesomeIcon icon={faBullseye} className="text-[#5B4FE8]" />
+            Savings Progress
           </div>
         </div>
 
@@ -122,7 +137,6 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: { goal: any; onClose:
                 </span>
                 <span className="font-bold text-[#5B4FE8]">{previewProgress}%</span>
               </div>
-              {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
               <div className="h-1.5 bg-white rounded-full overflow-hidden">
                 <div
                   className="h-full bg-linear-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
@@ -145,8 +159,14 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: { goal: any; onClose:
             <button onClick={onClose} className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors">
               Cancel
             </button>
-            <button onClick={handleSubmit} disabled={loading} className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {loading
+                ? <FontAwesomeIcon icon={faSpinner} className="animate-spin" />
+                : <FontAwesomeIcon icon={faCheck} />}
               {loading ? "Saving…" : "Save Progress"}
             </button>
           </div>
@@ -201,9 +221,11 @@ export default function GoalsPage() {
         <p className="text-[#8B87A8] text-sm">Track your financial targets</p>
       </div>
 
-      {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
+      {/* AI Banner */}
       <div className="bg-linear-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3 flex-wrap">
-        <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center text-base shrink-0">🤖</div>
+        <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center shrink-0">
+          <FontAwesomeIcon icon={faRobot} className="text-[#9B93F5] text-lg" />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-bold text-[#C7C3F8] mb-0.5">AI Goal Coach</div>
           <div className="text-[12px] text-white/60 leading-relaxed">
@@ -212,10 +234,18 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      {loading && <div className="text-center py-16 text-[#8B87A8]">Loading goals...</div>}
+      {loading && (
+        <div className="text-center py-16 text-[#8B87A8]">
+          <FontAwesomeIcon icon={faSpinner} className="animate-spin text-2xl mb-3 text-[#9B93F5]" />
+          <p className="text-sm">Loading goals...</p>
+        </div>
+      )}
 
       {!loading && goals.length === 0 && (
-        <div className="text-center py-10 text-[13px] text-[#8B87A8]">No goals found</div>
+        <div className="text-center py-10">
+          <FontAwesomeIcon icon={faBullseye} className="text-4xl text-[#C7C3F8] mb-3" />
+          <p className="text-[13px] text-[#8B87A8]">No goals found</p>
+        </div>
       )}
 
       {!loading && goals.length > 0 && (
@@ -225,6 +255,7 @@ export default function GoalsPage() {
             const statusStyle = getStatusStyles(progress);
             const barColor = getBarColor(progress);
             const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
+            const statusIcon = progress >= 80 ? faCircleCheck : progress >= 5 ? faCircleExclamation : faBullseye;
 
             return (
               <div key={goal.id} className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
@@ -234,7 +265,11 @@ export default function GoalsPage() {
                     <div className="text-[14px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{goal.name}</div>
                     <div className="text-[11px] text-[#8B87A8] mt-0.5">{formatDeadline(goal.deadline)}</div>
                   </div>
-                  <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full shrink-0" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold rounded-full shrink-0"
+                    style={{ background: statusStyle.bg, color: statusStyle.color }}
+                  >
+                    <FontAwesomeIcon icon={statusIcon} className="text-[10px]" />
                     {statusStyle.label}
                   </span>
                 </div>
@@ -244,7 +279,6 @@ export default function GoalsPage() {
                   <span className="text-[#8B87A8] font-mono">of LKR {goal.targetAmount.toLocaleString()}</span>
                 </div>
 
-                {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
                 <div className="h-1.5 bg-[#EAE8FB] rounded-full overflow-hidden">
                   <div className={`h-full bg-linear-to-r ${barColor} rounded-full transition-all duration-500`} style={{ width: `${progress}%` }} />
                 </div>
@@ -254,27 +288,28 @@ export default function GoalsPage() {
                   <span>LKR {remaining.toLocaleString()} remaining</span>
                 </div>
 
-                {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
-                <div className="bg-linear-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2 mt-2.5 text-[12px] text-[#4A4568] leading-relaxed">
-                  <strong className="text-[#5B4FE8]">💡</strong>{" "}
-                  {progress >= 80 ? "You're ahead of schedule! Keep it up 🎉"
-                    : progress >= 30 ? "At current rate, you can finish this goal on time!"
-                    : "Increase your monthly savings to reach this goal faster."}
+                <div className="bg-linear-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2 mt-2.5 text-[12px] text-[#4A4568] leading-relaxed flex items-start gap-2">
+                  <FontAwesomeIcon icon={faLightbulb} className="text-[#5B4FE8] mt-0.5 shrink-0" />
+                  <span>
+                    {progress >= 80 ? "You're ahead of schedule! Keep it up 🎉"
+                      : progress >= 30 ? "At current rate, you can finish this goal on time!"
+                      : "Increase your monthly savings to reach this goal faster."}
+                  </span>
                 </div>
 
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => setSelectedGoal(goal)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#EEF0FD] hover:bg-[#E0DDFC] text-[#5B4FE8] text-[12px] font-semibold rounded-xl transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#EEF0FD] hover:bg-[#E0DDFC] text-[#5B4FE8] text-[12px] font-semibold rounded-xl transition-colors"
                   >
-                    <Pencil size={13} /> Update Progress
+                    <FontAwesomeIcon icon={faPenToSquare} />
+                    Update Progress
                   </button>
-                  {/* ✅ Mobile touch-friendly delete — larger tap area */}
                   <button
                     onClick={() => setDeleteTarget(goal)}
-                    className="flex items-center justify-center min-w-44px min-h-44px px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"
+                    className="flex items-center justify-center min-w-11 min-h-11 px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"
                   >
-                    <Trash2 size={16} />
+                    <FontAwesomeIcon icon={faTrash} />
                   </button>
                 </div>
               </div>
