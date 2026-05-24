@@ -24,8 +24,8 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const router = useRouter();
 
   const handleNavigation = (href: string) => {
-    // Reset transaction filters to current month whenever navigating to transactions
     if (href === "/dashboard/transactions") {
+      // Always hard-reset to current month so the page initialises correctly
       const currentMonth = new Date().toISOString().slice(0, 7);
       sessionStorage.setItem("txFilterMonth", currentMonth);
     }
