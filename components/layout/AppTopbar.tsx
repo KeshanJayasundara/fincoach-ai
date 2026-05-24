@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Menu, Plus, X, Check, Loader2 } from "lucide-react";
+import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb, DollarSign } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
@@ -10,25 +10,38 @@ interface AppTopbarProps {
   onMenuClick: () => void;
 }
 
-function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess?: () => void }) {
-  const [name, setName] = useState("");
+/* ── Add Goal Modal — refined to match full design language ── */
+function AddGoalModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}) {
+  const [name, setName]               = useState("");
   const [targetAmount, setTargetAmount] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [deadline, setDeadline]       = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
 
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!name || !targetAmount) {
+    if (!name.trim() || !targetAmount) {
       setError("Goal name and target amount are required.");
+      return;
+    }
+    if (parseFloat(targetAmount) <= 0 || isNaN(parseFloat(targetAmount))) {
+      setError("Please enter a valid target amount.");
       return;
     }
     setError("");
     setLoading(true);
     try {
       await createGoal({
-        name,
+        name: name.trim(),
         targetAmount: parseFloat(targetAmount),
         deadline: deadline || undefined,
       });
@@ -36,10 +49,16 @@ function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose
       onSuccess?.();
       onClose();
     } catch {
-      setError("Failed to create goal.");
+      setError("Failed to create goal. Please try again.");
     }
     setLoading(false);
   };
+
+  const aiTips = [
+    "Set a realistic deadline to stay motivated",
+    "Break big goals into monthly savings targets",
+    "Link your goal to a specific saving category",
+  ];
 
   return (
     <div
@@ -64,10 +83,11 @@ function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose
           </button>
         </div>
 
-        {/* Tab-style header strip */}
+        {/* Tab strip */}
         <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] shrink-0">
           <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-semibold bg-white text-[#5B4FE8] shadow-sm border border-[#EAE8FB]">
-            🎯 Savings Goal
+            <Target size={12} />
+            Savings Goal
           </div>
         </div>
 
@@ -76,29 +96,34 @@ function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose
 
           {/* Goal Name */}
           <div>
-            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Goal Name</label>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Goal Name
+            </label>
             <input
               type="text"
               placeholder="e.g. Buy a Car, Emergency Fund..."
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] bg-white"
+              onChange={(e) => { setName(e.target.value); setError(""); }}
+              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] bg-white transition-colors"
             />
           </div>
 
           {/* Target Amount */}
           <div>
-            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">Target Amount</label>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Target Amount
+            </label>
             <div className="flex gap-2">
-              <div className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white text-[#4A4568] w-20 flex items-center justify-center">
+              <div className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white text-[#4A4568] w-20 flex items-center justify-center shrink-0">
                 LKR
               </div>
               <input
                 type="number"
                 placeholder="0.00"
                 value={targetAmount}
-                onChange={(e) => setTargetAmount(e.target.value)}
-                className="flex-1 px-3 py-2.5 text-[14px] font-semibold border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC]"
+                onChange={(e) => { setTargetAmount(e.target.value); setError(""); }}
+                min={1}
+                className="flex-1 px-3 py-2.5 text-[14px] font-semibold border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] transition-colors"
               />
             </div>
           </div>
@@ -106,36 +131,45 @@ function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose
           {/* Deadline */}
           <div>
             <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
-              Deadline <span className="font-normal normal-case">(optional)</span>
+              Deadline{" "}
+              <span className="font-normal normal-case text-[#C4C0DC]">(optional)</span>
             </label>
             <input
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635]"
+              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] transition-colors"
             />
           </div>
 
-          {/* AI Tip */}
-          <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3">
-            <div className="text-[11px] font-bold text-[#5B4FE8] mb-1.5">🤖 AI Goal Tips</div>
-            {["Set a realistic deadline to stay motivated", "Break big goals into monthly savings targets", "Link your goal to a specific saving category"].map((tip) => (
-              <div key={tip} className="flex items-center gap-2 text-[11px] text-[#4A4568] mb-1">
-                <div className="w-1 h-1 rounded-full bg-[#9B93F5] shrink-0" />
+          {/* AI Tips */}
+          <div className="bg-gradient-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-3.5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-6 h-6 bg-[#5B4FE8]/30 rounded-md flex items-center justify-center shrink-0">
+                <Lightbulb size={12} className="text-[#9B93F5]" />
+              </div>
+              <span className="text-[12px] font-bold text-[#C7C3F8]">AI Goal Tips</span>
+            </div>
+            {aiTips.map((tip) => (
+              <div key={tip} className="flex items-start gap-2 text-[11px] text-white/60 mb-1.5 last:mb-0 leading-relaxed">
+                <div className="w-1 h-1 rounded-full bg-[#9B93F5] shrink-0 mt-1.5" />
                 {tip}
               </div>
             ))}
           </div>
 
           {error && (
-            <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</div>
+            <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">
+              {error}
+            </div>
           )}
 
           {/* Buttons */}
           <div className="flex gap-2 pt-1 pb-1">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors"
+              disabled={loading}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -154,11 +188,12 @@ function AddGoalModal({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose
   );
 }
 
+/* ── Topbar ── */
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
-  const [notifications] = useState(3);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [notifications]       = useState(3);
+  const [showAddModal, setShowAddModal]         = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
 
   const getPageConfig = () => {
@@ -244,7 +279,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
           <div
             onClick={() => router.push("/dashboard/settings")}
-            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
+            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
           >
             K
           </div>
