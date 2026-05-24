@@ -29,10 +29,17 @@ const getBarColor = (progress: number) => {
   return "from-blue-500 to-sky-400";
 };
 
-function ConfirmModal({ message, onConfirm, onCancel }: {
+/* ── Delete Confirm Modal (matches transaction delete design, with loading state) ── */
+function ConfirmModal({
+  message,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  loading: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
@@ -42,19 +49,27 @@ function ConfirmModal({ message, onConfirm, onCancel }: {
           <FontAwesomeIcon icon={faTrash} className="text-red-500 text-xl" />
         </div>
         <h3 className="text-[15px] font-bold text-[#1A1635] text-center mb-2">Delete Goal</h3>
-        <p className="text-[13px] text-[#8B87A8] text-center mb-6">{message}</p>
+        <p className="text-[13px] text-[#8B87A8] text-center mb-1">{message}</p>
+        <p className="text-[12px] text-[#C4C0DC] text-center mb-6">This action cannot be undone.</p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 text-[13px] font-semibold text-[#4A4568] border border-[#D1CCFF] rounded-xl hover:bg-[#F8F7FF] transition-colors"
+            disabled={loading}
+            className="flex-1 py-3 text-[13px] font-semibold text-[#4A4568] border border-[#D1CCFF] rounded-xl hover:bg-[#F8F7FF] transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-3 text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
+            disabled={loading}
+            className="flex-1 py-3 text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            Delete
+            {loading ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <FontAwesomeIcon icon={faTrash} className="text-[12px]" />
+            )}
+            {loading ? "Deleting…" : "Delete"}
           </button>
         </div>
       </div>
@@ -62,7 +77,12 @@ function ConfirmModal({ message, onConfirm, onCancel }: {
   );
 }
 
-function UpdateProgressModal({ goal, onClose, onSuccess }: {
+/* ── Update Progress Modal (auto-reloads via onSuccess → loadGoals) ── */
+function UpdateProgressModal({
+  goal,
+  onClose,
+  onSuccess,
+}: {
   goal: any;
   onClose: () => void;
   onSuccess: () => void;
@@ -82,10 +102,14 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: {
     setLoading(true);
     try {
       await updateGoalProgress(goal.id, val);
-      onSuccess();
+      // FIX: call onSuccess first (triggers loadGoals), THEN close modal
+      // so the UI re-fetches before the modal disappears
+      await onSuccess();
       onClose();
-    } catch { setError("Failed to update progress."); }
-    setLoading(false);
+    } catch {
+      setError("Failed to update progress.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -161,7 +185,7 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: {
               </div>
               <div className="h-2 bg-white rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-linear-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
+                  className="h-full bg-gradient-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
                   style={{ width: `${previewProgress}%` }}
                 />
               </div>
@@ -183,7 +207,8 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: {
           <div className="flex gap-2 pt-1 pb-2">
             <button
               onClick={onClose}
-              className="flex-1 py-3 text-[13px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-xl hover:border-[#C7C3F8] transition-colors"
+              disabled={loading}
+              className="flex-1 py-3 text-[13px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-xl hover:border-[#C7C3F8] transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -204,14 +229,17 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: {
   );
 }
 
+/* ── Page ── */
 export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => { loadGoals(); }, []);
 
+  // Returns a Promise so UpdateProgressModal can await it before closing
   const loadGoals = async () => {
     setLoading(true);
     try { setGoals(await getGoals()); }
@@ -221,6 +249,7 @@ export default function GoalsPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
       await deleteGoal(deleteTarget.id);
       setDeleteTarget(null);
@@ -228,6 +257,7 @@ export default function GoalsPage() {
     } catch {
       setDeleteTarget(null);
     }
+    setDeleteLoading(false);
   };
 
   const formatDeadline = (deadline: string | null) => {
@@ -251,7 +281,7 @@ export default function GoalsPage() {
       </div>
 
       {/* AI Banner */}
-      <div className="bg-linear-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3">
+      <div className="bg-gradient-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3">
         <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center shrink-0">
           <FontAwesomeIcon icon={faRobot} className="text-[#9B93F5] text-lg" />
         </div>
@@ -322,7 +352,7 @@ export default function GoalsPage() {
                 <div>
                   <div className="h-2 bg-[#EAE8FB] rounded-full overflow-hidden">
                     <div
-                      className={`h-full bg-linear-to-r ${barColor} rounded-full transition-all duration-500`}
+                      className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all duration-500`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -333,7 +363,7 @@ export default function GoalsPage() {
                 </div>
 
                 {/* AI Insight */}
-                <div className="bg-linear-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2.5 text-[12px] text-[#4A4568] leading-relaxed flex items-start gap-2">
+                <div className="bg-gradient-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2.5 text-[12px] text-[#4A4568] leading-relaxed flex items-start gap-2">
                   <FontAwesomeIcon icon={faLightbulb} className="text-[#5B4FE8] mt-0.5 shrink-0" />
                   <span>
                     {progress >= 80
@@ -371,7 +401,7 @@ export default function GoalsPage() {
         <UpdateProgressModal
           goal={selectedGoal}
           onClose={() => setSelectedGoal(null)}
-          onSuccess={loadGoals}
+          onSuccess={loadGoals}   // loadGoals is async → modal awaits it before closing
         />
       )}
 
@@ -379,7 +409,8 @@ export default function GoalsPage() {
         <ConfirmModal
           message={`"${deleteTarget.name}" goal will be permanently deleted.`}
           onConfirm={handleDelete}
-          onCancel={() => setDeleteTarget(null)}
+          onCancel={() => !deleteLoading && setDeleteTarget(null)}
+          loading={deleteLoading}
         />
       )}
     </div>
