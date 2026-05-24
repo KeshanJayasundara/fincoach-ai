@@ -14,24 +14,10 @@ import {
 /*  HELPERS                                                */
 /* ─────────────────────────────────────────────────────── */
 
-// Returns e.g. "May" for current month
-function currentMonthName() {
-  return new Date().toLocaleString("default", { month: "long" });
-}
-
-// Returns previous month name e.g. "April"
-function prevMonthName() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toLocaleString("default", { month: "long" });
-}
-
-// Returns "YYYY-MM" for current month
 function currentMonthKey() {
   return new Date().toISOString().slice(0, 7);
 }
 
-// Returns "YYYY-MM" for previous month
 function prevMonthKey() {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
@@ -196,6 +182,65 @@ const getCategoryBadge = (category: string): { label: string; bg: string; color:
 };
 
 /* ─────────────────────────────────────────────────────── */
+/*  CONFIRM DELETE MODAL (from goals page design)          */
+/* ─────────────────────────────────────────────────────── */
+function ConfirmDeleteModal({
+  transaction,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  transaction: any;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]"
+        onClick={onCancel}
+      />
+      <div className="relative bg-white rounded-2xl shadow-2xl z-10 w-full max-w-sm mx-auto p-6">
+        <div className="flex items-center justify-center w-14 h-14 bg-red-50 rounded-full mx-auto mb-4">
+          <Trash2 size={22} className="text-red-500" />
+        </div>
+        <h3 className="text-[15px] font-bold text-[#1A1635] text-center mb-2">
+          Delete Transaction
+        </h3>
+        <p className="text-[13px] text-[#8B87A8] text-center mb-1">
+          &ldquo;{transaction.description || transaction.category}&rdquo; will be permanently deleted.
+        </p>
+        <p className="text-[12px] text-[#C4C0DC] text-center mb-6">
+          This action cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-3 text-[13px] font-semibold text-[#4A4568] border border-[#D1CCFF] rounded-xl hover:bg-[#F8F7FF] transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 py-3 text-[13px] font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Trash2 size={14} />
+            )}
+            {loading ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────── */
 /*  SEARCHABLE CATEGORY FILTER DROPDOWN                    */
 /* ─────────────────────────────────────────────────────── */
 interface FilterCategoryDropdownProps {
@@ -231,7 +276,6 @@ function FilterCategoryDropdown({
     if (open) setTimeout(() => searchRef.current?.focus(), 50);
   }, [open]);
 
-  // Reset category when type changes
   useEffect(() => {
     onChange("all");
     setSearch("");
@@ -268,7 +312,6 @@ function FilterCategoryDropdown({
 
       {open && (
         <div className="absolute z-50 mt-1.5 w-full min-w-[220px] bg-white border border-[#D1CCFF] rounded-xl shadow-lg overflow-hidden">
-          {/* Type badge */}
           <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2 border-b border-[#EAE8FB]">
             <span
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
@@ -279,7 +322,6 @@ function FilterCategoryDropdown({
             <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
           </div>
 
-          {/* Search */}
           <div className="px-3 py-2 border-b border-[#EAE8FB]">
             <div className="flex items-center gap-2 bg-[#F8F7FF] rounded-lg px-2.5 py-1.5">
               <Search size={12} className="text-[#8B87A8] shrink-0" />
@@ -299,7 +341,6 @@ function FilterCategoryDropdown({
             </div>
           </div>
 
-          {/* List */}
           <ul className="max-h-48 overflow-y-auto py-1">
             <li>
               <button
@@ -356,14 +397,13 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm]         = useState("");
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
-  const [filterMonth, setFilterMonth]       = useState("all");
+  // FIX 1: Default to current month instead of "all"
+  const [filterMonth, setFilterMonth]       = useState(currentMonthKey());
   const [loading, setLoading]               = useState(true);
 
-  // ── dynamic month labels ──────────────────────────────
-  const thisMonth = currentMonthKey();   // e.g. "2025-05"
-  const prevMonth = prevMonthKey();      // e.g. "2025-04"
-  const thisMonthLabel = currentMonthName(); // e.g. "May"
-  const prevMonthLabel = prevMonthName();    // e.g. "April"
+  // FIX 3: Delete modal state instead of window.confirm
+  const [deleteTarget, setDeleteTarget]     = useState<any>(null);
+  const [deleteLoading, setDeleteLoading]   = useState(false);
 
   useEffect(() => { loadTransactions(); }, []);
 
@@ -386,59 +426,76 @@ export default function TransactionsPage() {
   }, [filterType]);
 
   // ── FILTERING ────────────────────────────────────────
-  // All four filters work independently and compose together
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      // 1. Search — description OR category
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
         !searchTerm ||
         (tx.description ?? "").toLowerCase().includes(searchLower) ||
         tx.category.toLowerCase().includes(searchLower);
-
-      // 2. Type
-      const matchesType =
-        filterType === "all" || tx.type === filterType;
-
-      // 3. Category — compare by enum value string
-      const matchesCategory =
-        filterCategory === "all" || tx.category === filterCategory;
-
-      // 4. Month — "YYYY-MM" comparison
-      const matchesMonth =
-        filterMonth === "all" || txMonthKey(tx) === filterMonth;
-
+      const matchesType     = filterType === "all" || tx.type === filterType;
+      const matchesCategory = filterCategory === "all" || tx.category === filterCategory;
+      const matchesMonth    = filterMonth === "all" || txMonthKey(tx) === filterMonth;
       return matchesSearch && matchesType && matchesCategory && matchesMonth;
     });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  // ── STATS: current-month totals + % change vs previous ──
-  const currentMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === thisMonth),
-    [transactions, thisMonth],
-  );
-  const prevMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === prevMonth),
-    [transactions, prevMonth],
+  // ── FIX 2: Stats cards react to filterMonth ──────────
+  // Transactions for the currently selected month (or all)
+  const selectedMonthTxs = useMemo(
+    () =>
+      filterMonth === "all"
+        ? transactions
+        : transactions.filter((t) => txMonthKey(t) === filterMonth),
+    [transactions, filterMonth],
   );
 
-  const currentIncome  = currentMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const currentExpense = currentMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
-  const prevIncome     = prevMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const prevExpense    = prevMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  // The month before the selected one (for % change comparison)
+  const comparisonMonthKey = useMemo(() => {
+    if (filterMonth === "all") return prevMonthKey();
+    const [y, m] = filterMonth.split("-").map(Number);
+    const d = new Date(y, m - 2, 1); // one month before
+    return d.toISOString().slice(0, 7);
+  }, [filterMonth]);
+
+  const comparisonMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === comparisonMonthKey),
+    [transactions, comparisonMonthKey],
+  );
+
+  // Label for the selected month shown in the stat cards
+  const selectedMonthLabel = useMemo(() => {
+    if (filterMonth === "all") return "All time";
+    const [y, m] = filterMonth.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
+  }, [filterMonth]);
+
+  // Label for the comparison month shown in the % change line
+  const comparisonMonthLabel = useMemo(() => {
+    const [y, m] = comparisonMonthKey.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
+  }, [comparisonMonthKey]);
+
+  const currentIncome  = selectedMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const currentExpense = selectedMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const prevIncome     = comparisonMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const prevExpense    = comparisonMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
 
   const incomePct  = prevIncome  > 0 ? (((currentIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
   const expensePct = prevExpense > 0 ? (((currentExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
 
-  // ── delete ────────────────────────────────────────────
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this transaction?")) return;
+  // ── FIX 3: delete via modal ───────────────────────────
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await deleteTransaction(id);
+      await deleteTransaction(deleteTarget.id);
+      setDeleteTarget(null);
       loadTransactions();
     } catch {
       alert("Failed to delete transaction");
     }
+    setDeleteLoading(false);
   };
 
   // ── month picker options ──────────────────────────────
@@ -455,11 +512,10 @@ export default function TransactionsPage() {
     return months;
   };
 
-  // Active filter count badge
   const activeFilters = [
     filterType     !== "all",
     filterCategory !== "all",
-    filterMonth    !== "all",
+    filterMonth    !== currentMonthKey(), // "active" if not current month
     searchTerm     !== "",
   ].filter(Boolean).length;
 
@@ -467,46 +523,50 @@ export default function TransactionsPage() {
     setSearchTerm("");
     setFilterType("all");
     setFilterCategory("all");
-    setFilterMonth("all");
+    setFilterMonth(currentMonthKey()); // reset to current month, not "all"
   };
 
   return (
     <div className="space-y-4">
 
-      {/* ── Stats Cards ── */}
+      {/* ── Stats Cards (FIX 2: react to filterMonth) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-        {/* Current-month income */}
+        {/* Selected-month income */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
-            {thisMonthLabel} income
+            {selectedMonthLabel} income
           </div>
           <div className="text-[18px] font-bold text-[#1A1635]">
             LKR {currentIncome.toLocaleString()}
           </div>
-          {incomePct !== null ? (
+          {filterMonth !== "all" && incomePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(incomePct) >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {prevMonthLabel}
+              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {comparisonMonthLabel}
             </div>
           ) : (
-            <div className="text-[11px] text-[#8B87A8]">No data last month</div>
+            <div className="text-[11px] text-[#8B87A8]">
+              {filterMonth === "all" ? "Across all months" : "No data last month"}
+            </div>
           )}
         </div>
 
-        {/* Current-month expenses */}
+        {/* Selected-month expenses */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
-            {thisMonthLabel} expenses
+            {selectedMonthLabel} expenses
           </div>
           <div className="text-[18px] font-bold text-[#1A1635]">
             LKR {currentExpense.toLocaleString()}
           </div>
-          {expensePct !== null ? (
+          {filterMonth !== "all" && expensePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(expensePct) <= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {prevMonthLabel}
+              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {comparisonMonthLabel}
             </div>
           ) : (
-            <div className="text-[11px] text-[#8B87A8]">No data last month</div>
+            <div className="text-[11px] text-[#8B87A8]">
+              {filterMonth === "all" ? "Across all months" : "No data last month"}
+            </div>
           )}
         </div>
 
@@ -552,7 +612,6 @@ export default function TransactionsPage() {
               )}
             </div>
 
-            {/* Clear all filters button — only shows when filters active */}
             {activeFilters > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -581,7 +640,7 @@ export default function TransactionsPage() {
               <option value={TransactionType.Income}>Income</option>
             </select>
 
-            {/* Category — searchable dropdown, reacts to type */}
+            {/* Category — searchable dropdown */}
             <FilterCategoryDropdown
               categories={visibleCategories}
               value={filterCategory}
@@ -589,7 +648,7 @@ export default function TransactionsPage() {
               filterType={filterType}
             />
 
-            {/* Month */}
+            {/* Month — FIX 1: default option is current month */}
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
@@ -623,10 +682,10 @@ export default function TransactionsPage() {
                   <button onClick={() => setFilterCategory("all")}><X size={10} /></button>
                 </span>
               )}
-              {filterMonth !== "all" && (
+              {filterMonth !== currentMonthKey() && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  📅 {getLastMonths().find((m) => m.value === filterMonth)?.label ?? filterMonth}
-                  <button onClick={() => setFilterMonth("all")}><X size={10} /></button>
+                  📅 {filterMonth === "all" ? "All Months" : getLastMonths().find((m) => m.value === filterMonth)?.label ?? filterMonth}
+                  <button onClick={() => setFilterMonth(currentMonthKey())}><X size={10} /></button>
                 </span>
               )}
             </div>
@@ -672,7 +731,6 @@ export default function TransactionsPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  // Skeleton rows
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i} className="border-b border-[#EAE8FB]">
                       <td className="py-3 px-4">
@@ -735,8 +793,9 @@ export default function TransactionsPage() {
                           {tx.amount.toLocaleString()}
                         </td>
                         <td className="py-3 px-4">
+                          {/* FIX 3: opens modal instead of window.confirm */}
                           <button
-                            onClick={() => handleDelete(tx.id)}
+                            onClick={() => setDeleteTarget(tx)}
                             className="p-1.5 text-[#8B87A8] hover:text-red-600 rounded-lg hover:bg-[#FEF2F2] transition-colors"
                           >
                             <Trash2 size={13} />
@@ -751,6 +810,16 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      {/* ── FIX 3: Delete Confirm Modal ── */}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          transaction={deleteTarget}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   );
 }
