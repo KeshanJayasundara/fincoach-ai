@@ -182,7 +182,7 @@ const getCategoryBadge = (category: string): { label: string; bg: string; color:
 };
 
 /* ─────────────────────────────────────────────────────── */
-/*  CONFIRM DELETE MODAL (from goals page design)          */
+/*  CONFIRM DELETE MODAL                                   */
 /* ─────────────────────────────────────────────────────── */
 function ConfirmDeleteModal({
   transaction,
@@ -397,13 +397,21 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm]         = useState("");
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
-  // FIX 1: Default to current month instead of "all"
-  const [filterMonth, setFilterMonth]       = useState(currentMonthKey());
-  const [loading, setLoading]               = useState(true);
 
-  // FIX 3: Delete modal state instead of window.confirm
+  // ── FIX: persist filterMonth in sessionStorage so it survives navigation ──
+  const [filterMonth, setFilterMonth] = useState(() => {
+    if (typeof window === "undefined") return currentMonthKey();
+    return sessionStorage.getItem("txFilterMonth") ?? currentMonthKey();
+  });
+
+  const [loading, setLoading]               = useState(true);
   const [deleteTarget, setDeleteTarget]     = useState<any>(null);
   const [deleteLoading, setDeleteLoading]   = useState(false);
+
+  // Persist filterMonth whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem("txFilterMonth", filterMonth);
+  }, [filterMonth]);
 
   useEffect(() => { loadTransactions(); }, []);
 
@@ -440,8 +448,7 @@ export default function TransactionsPage() {
     });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  // ── FIX 2: Stats cards react to filterMonth ──────────
-  // Transactions for the currently selected month (or all)
+  // ── Stats react to filterMonth ────────────────────────
   const selectedMonthTxs = useMemo(
     () =>
       filterMonth === "all"
@@ -450,11 +457,10 @@ export default function TransactionsPage() {
     [transactions, filterMonth],
   );
 
-  // The month before the selected one (for % change comparison)
   const comparisonMonthKey = useMemo(() => {
     if (filterMonth === "all") return prevMonthKey();
     const [y, m] = filterMonth.split("-").map(Number);
-    const d = new Date(y, m - 2, 1); // one month before
+    const d = new Date(y, m - 2, 1);
     return d.toISOString().slice(0, 7);
   }, [filterMonth]);
 
@@ -463,14 +469,12 @@ export default function TransactionsPage() {
     [transactions, comparisonMonthKey],
   );
 
-  // Label for the selected month shown in the stat cards
   const selectedMonthLabel = useMemo(() => {
     if (filterMonth === "all") return "All time";
     const [y, m] = filterMonth.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
   }, [filterMonth]);
 
-  // Label for the comparison month shown in the % change line
   const comparisonMonthLabel = useMemo(() => {
     const [y, m] = comparisonMonthKey.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
@@ -484,7 +488,6 @@ export default function TransactionsPage() {
   const incomePct  = prevIncome  > 0 ? (((currentIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
   const expensePct = prevExpense > 0 ? (((currentExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
 
-  // ── FIX 3: delete via modal ───────────────────────────
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
     setDeleteLoading(true);
@@ -498,7 +501,6 @@ export default function TransactionsPage() {
     setDeleteLoading(false);
   };
 
-  // ── month picker options ──────────────────────────────
   const getLastMonths = () => {
     const months = [];
     const now = new Date();
@@ -515,7 +517,7 @@ export default function TransactionsPage() {
   const activeFilters = [
     filterType     !== "all",
     filterCategory !== "all",
-    filterMonth    !== currentMonthKey(), // "active" if not current month
+    filterMonth    !== currentMonthKey(),
     searchTerm     !== "",
   ].filter(Boolean).length;
 
@@ -523,16 +525,15 @@ export default function TransactionsPage() {
     setSearchTerm("");
     setFilterType("all");
     setFilterCategory("all");
-    setFilterMonth(currentMonthKey()); // reset to current month, not "all"
+    setFilterMonth(currentMonthKey());
   };
 
   return (
     <div className="space-y-4">
 
-      {/* ── Stats Cards (FIX 2: react to filterMonth) ── */}
+      {/* ── Stats Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-        {/* Selected-month income */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
             {selectedMonthLabel} income
@@ -551,7 +552,6 @@ export default function TransactionsPage() {
           )}
         </div>
 
-        {/* Selected-month expenses */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
             {selectedMonthLabel} expenses
@@ -570,7 +570,6 @@ export default function TransactionsPage() {
           )}
         </div>
 
-        {/* Total — shows filtered count when filters active */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
             {activeFilters > 0 ? "Filtered results" : "Total transactions"}
@@ -591,7 +590,6 @@ export default function TransactionsPage() {
       <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
         <div className="flex flex-col gap-3">
 
-          {/* Search + clear */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B87A8]" size={14} />
@@ -623,10 +621,8 @@ export default function TransactionsPage() {
             )}
           </div>
 
-          {/* Type + Category + Month */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
 
-            {/* Type */}
             <select
               value={filterType}
               onChange={(e) => {
@@ -640,7 +636,6 @@ export default function TransactionsPage() {
               <option value={TransactionType.Income}>Income</option>
             </select>
 
-            {/* Category — searchable dropdown */}
             <FilterCategoryDropdown
               categories={visibleCategories}
               value={filterCategory}
@@ -648,7 +643,6 @@ export default function TransactionsPage() {
               filterType={filterType}
             />
 
-            {/* Month — FIX 1: default option is current month */}
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
@@ -661,7 +655,6 @@ export default function TransactionsPage() {
             </select>
           </div>
 
-          {/* Active filter chips */}
           {activeFilters > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {searchTerm && (
@@ -696,7 +689,6 @@ export default function TransactionsPage() {
       {/* ── Transactions Table ── */}
       <div className="bg-white border border-[#EAE8FB] rounded-xl shadow-[0_1px_3px_rgba(91,79,232,0.07)] overflow-hidden">
 
-        {/* Empty state */}
         {!loading && filteredTransactions.length === 0 && (
           <div className="py-14 flex flex-col items-center gap-3 text-center px-4">
             <div className="text-3xl">🔍</div>
@@ -793,7 +785,6 @@ export default function TransactionsPage() {
                           {tx.amount.toLocaleString()}
                         </td>
                         <td className="py-3 px-4">
-                          {/* FIX 3: opens modal instead of window.confirm */}
                           <button
                             onClick={() => setDeleteTarget(tx)}
                             className="p-1.5 text-[#8B87A8] hover:text-red-600 rounded-lg hover:bg-[#FEF2F2] transition-colors"
@@ -811,7 +802,7 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* ── FIX 3: Delete Confirm Modal ── */}
+      {/* ── Delete Confirm Modal ── */}
       {deleteTarget && (
         <ConfirmDeleteModal
           transaction={deleteTarget}
