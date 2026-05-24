@@ -90,23 +90,18 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-md sm:mx-auto bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden z-10">
-
-        {/* Handle bar — mobile only */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-10 h-1 bg-[#D1CCFF] rounded-full" />
-        </div>
+      <div className="relative w-full max-w-md mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden z-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#EAE8FB]">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB]">
           <div>
             <h2 className="text-[15px] font-bold text-[#1A1635]">Update Progress</h2>
-            <p className="text-[11px] text-[#8B87A8] mt-0.5 truncate max-w-220px">{goal.name}</p>
+            <p className="text-[11px] text-[#8B87A8] mt-0.5 truncate max-w-55">{goal.name}</p>
           </div>
           <button
             onClick={onClose}
@@ -382,7 +377,7 @@ export default function GoalsPage() {
 
       {deleteTarget && (
         <ConfirmModal
-          message={`"${deleteTarget.name}" goal permanently delete වෙනවා.`}
+          message={`"${deleteTarget.name}" goal will be permanently deleted.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
         />
