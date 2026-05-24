@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import vision from "@google-cloud/vision";
-
-const visionClient = new vision.ImageAnnotatorClient({
-  credentials: JSON.parse(process.env.GOOGLE_VISION_CREDENTIALS!),
-});
 
 export async function POST(req: NextRequest) {
   try {
     const { base64Image } = await req.json();
+
     if (!base64Image) {
-      return NextResponse.json({ error: "No image provided" }, { status: 400 });
-    }
-
-    // ── Step 1: Google Vision OCR (~1-2s) ──────────────────────────────
-    const [result] = await visionClient.textDetection({
-      image: { content: base64Image },
-    });
-    const extractedText = result.textAnnotations?.[0]?.description ?? "";
-
-    if (!extractedText) {
       return NextResponse.json(
-        { error: "Could not extract text from image." },
-        { status: 422 }
+        { error: "No image provided" },
+        { status: 400 }
       );
     }
 
-    // ── Step 2: Haiku categorises the text (~2-3s) ─────────────────────
     const ALL_CATEGORY_VALUES = [
       "Food & Grocery", "Dining Out", "Coffee & Snacks", "Takeaway / Delivery",
       "Alcohol & Bar", "Rent / Mortgage", "Utilities", "Internet & Phone",
@@ -47,43 +32,40 @@ export async function POST(req: NextRequest) {
       "Refund / Cashback", "Other Income",
     ];
 
-    const today = new Date().toISOString().slice(0, 10);
+    const prompt = `You are a receipt/bill OCR and categorisation assistant for a personal finance app.
 
-    const prompt = `You are a receipt parser for a personal finance app.
-
-Given this raw OCR text from a receipt, extract the fields below.
-Respond ONLY with a valid JSON object — no markdown, no explanation.
-
-OCR TEXT:
-${extractedText}
+Analyse the receipt image and extract the following fields. Respond ONLY with a valid JSON object — no markdown, no explanation, no code fences.
 
 JSON shape:
 {
   "amount": "<number as string, e.g. 2450.00>",
   "currency": "<one of: LKR, USD, EUR, GBP, AED, SGD, INR, AUD — default LKR if unclear>",
-  "type": "<expense or income>",
-  "category": "<pick EXACTLY one from the allowed list>",
+  "type": "<expense or income — almost always expense for a receipt>",
+  "category": "<pick EXACTLY one value from the allowed list below>",
   "description": "<short merchant name or bill summary, max 60 chars>",
-  "date": "<YYYY-MM-DD — use ${today} if not found>",
+  "date": "<YYYY-MM-DD — today if not found on receipt>",
   "confidence": "<high | medium | low>"
 }
 
-ALLOWED CATEGORIES: ${ALL_CATEGORY_VALUES.map((v) => `"${v}"`).join(", ")}
+ALLOWED CATEGORY VALUES (copy verbatim, case-sensitive):
+${ALL_CATEGORY_VALUES.map((v) => `"${v}"`).join(", ")}
 
 Rules:
-- Supermarket/grocery → "Food & Grocery"
-- Restaurant/cafe → "Dining Out" or "Coffee & Snacks"
-- Pharmacy/chemist → "Pharmacy"
-- Fuel stations → "Fuel & Parking"
-- Utility bills (CEB, LECO, water) → "Utilities"
-- Telecom (Dialog, Mobitel, SLT) → "Internet & Phone"
-- Clothing stores → "Clothing & Fashion"
-- Electronics shops → "Electronics & Tech"
-- Ride-hailing (PickMe, Uber) → "Taxi / Ride Share"
-- Hospital/medical → "Health & Medical"
+- For supermarket / grocery receipts → "Food & Grocery"
+- For restaurant / cafe receipts → "Dining Out" or "Coffee & Snacks"
+- For pharmacy / chemist → "Pharmacy"
+- For fuel stations → "Fuel & Parking"
+- For utility bills (CEB, LECO, water) → "Utilities"
+- For telecom bills (Dialog, Mobitel, SLT) → "Internet & Phone"
+- For clothing stores → "Clothing & Fashion"
+- For electronics shops → "Electronics & Tech"
+- For ride-hailing (PickMe, Uber) → "Taxi / Ride Share"
+- For hospital / medical → "Health & Medical"
+- For streaming (Netflix, Spotify) → "Streaming Services"
+- For hotel / accommodation → "Hotels & Stay"
 - If genuinely unsure → "Other"
-- If amount not found → "0"
-- Date must be YYYY-MM-DD`;
+- If the amount is ambiguous or not found, set amount to "0"
+- The date field must be ISO 8601 (YYYY-MM-DD)`;
 
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -95,7 +77,22 @@ Rules:
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: "image/jpeg",
+                  data: base64Image,
+                },
+              },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
       }),
     });
 
