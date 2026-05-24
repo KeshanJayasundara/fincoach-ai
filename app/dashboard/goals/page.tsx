@@ -293,7 +293,7 @@ export default function GoalsPage() {
 
       {deleteTarget && (
         <ConfirmModal
-          message={`"${deleteTarget.name}" goal permanently delete වෙනවා.`}
+          message={`"${deleteTarget.name}" goal will be permanently deleted.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
         />
