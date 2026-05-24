@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, MoreHorizontal, ChevronDown, X, Check, Trash2 } from "lucide-react";
+import { Search, ChevronDown, X, Check, Trash2 } from "lucide-react";
 import { getTransactions, deleteTransaction } from "@/actions/transactions";
 import {
   TransactionType,
@@ -197,23 +197,16 @@ function ConfirmDeleteModal({
 }) {
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]"
-        onClick={onCancel}
-      />
+      <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-2xl z-10 w-full max-w-sm mx-auto p-6">
         <div className="flex items-center justify-center w-14 h-14 bg-red-50 rounded-full mx-auto mb-4">
           <Trash2 size={22} className="text-red-500" />
         </div>
-        <h3 className="text-[15px] font-bold text-[#1A1635] text-center mb-2">
-          Delete Transaction
-        </h3>
+        <h3 className="text-[15px] font-bold text-[#1A1635] text-center mb-2">Delete Transaction</h3>
         <p className="text-[13px] text-[#8B87A8] text-center mb-1">
           &ldquo;{transaction.description || transaction.category}&rdquo; will be permanently deleted.
         </p>
-        <p className="text-[12px] text-[#C4C0DC] text-center mb-6">
-          This action cannot be undone.
-        </p>
+        <p className="text-[12px] text-[#C4C0DC] text-center mb-6">This action cannot be undone.</p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
@@ -292,8 +285,6 @@ function FilterCategoryDropdown({
   const typeColor = isIncome ? "#14532D" : isExpense ? "#7F1D1D" : "#3C3489";
   const typeEmoji = isIncome ? "🟢" : isExpense ? "🔴" : "🔵";
 
-  const displayLabel = value === "all" ? "All categories" : value;
-
   return (
     <div ref={containerRef} className="relative w-full">
       <button
@@ -303,7 +294,7 @@ function FilterCategoryDropdown({
           open ? "border-[#5B4FE8]" : "border-[#D1CCFF]"
         } ${value !== "all" ? "text-[#1A1635]" : "text-[#4A4568]"}`}
       >
-        <span className="truncate">{displayLabel}</span>
+        <span className="truncate">{value === "all" ? "All categories" : value}</span>
         <ChevronDown
           size={13}
           className={`text-[#8B87A8] shrink-0 ml-1 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -321,7 +312,6 @@ function FilterCategoryDropdown({
             </span>
             <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
           </div>
-
           <div className="px-3 py-2 border-b border-[#EAE8FB]">
             <div className="flex items-center gap-2 bg-[#F8F7FF] rounded-lg px-2.5 py-1.5">
               <Search size={12} className="text-[#8B87A8] shrink-0" />
@@ -340,23 +330,19 @@ function FilterCategoryDropdown({
               )}
             </div>
           </div>
-
           <ul className="max-h-48 overflow-y-auto py-1">
             <li>
               <button
                 type="button"
                 onClick={() => { onChange("all"); setOpen(false); setSearch(""); }}
                 className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
-                  value === "all"
-                    ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
-                    : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                  value === "all" ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold" : "text-[#4A4568] hover:bg-[#F8F7FF]"
                 }`}
               >
                 All categories
                 {value === "all" && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
               </button>
             </li>
-
             {filtered.length > 0 ? (
               filtered.map((cat) => (
                 <li key={cat}>
@@ -364,9 +350,7 @@ function FilterCategoryDropdown({
                     type="button"
                     onClick={() => { onChange(cat as TransactionCategory); setOpen(false); setSearch(""); }}
                     className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
-                      value === cat
-                        ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
-                        : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                      value === cat ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold" : "text-[#4A4568] hover:bg-[#F8F7FF]"
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -398,17 +382,17 @@ export default function TransactionsPage() {
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
 
-  // ── FIX: persist filterMonth in sessionStorage so it survives navigation ──
+  // Always default to current month; persist across same-session navigation
   const [filterMonth, setFilterMonth] = useState(() => {
     if (typeof window === "undefined") return currentMonthKey();
     return sessionStorage.getItem("txFilterMonth") ?? currentMonthKey();
   });
 
-  const [loading, setLoading]               = useState(true);
-  const [deleteTarget, setDeleteTarget]     = useState<any>(null);
-  const [deleteLoading, setDeleteLoading]   = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [deleteTarget, setDeleteTarget]   = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Persist filterMonth whenever it changes
+  // Persist filterMonth so it survives in-session navigation
   useEffect(() => {
     sessionStorage.setItem("txFilterMonth", filterMonth);
   }, [filterMonth]);
@@ -426,14 +410,12 @@ export default function TransactionsPage() {
     setLoading(false);
   };
 
-  // ── category list reacts to selected type ────────────
   const visibleCategories = useMemo(() => {
     if (filterType === TransactionType.Income)  return IncomeCategoriesList as string[];
     if (filterType === TransactionType.Expense) return ExpenseCategoriesList as string[];
     return [...IncomeCategoriesList, ...ExpenseCategoriesList] as string[];
   }, [filterType]);
 
-  // ── FILTERING ────────────────────────────────────────
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
       const searchLower = searchTerm.toLowerCase();
@@ -448,42 +430,30 @@ export default function TransactionsPage() {
     });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  // ── Stats react to filterMonth ────────────────────────
-  const selectedMonthTxs = useMemo(
-    () =>
-      filterMonth === "all"
-        ? transactions
-        : transactions.filter((t) => txMonthKey(t) === filterMonth),
-    [transactions, filterMonth],
+  // ── Stats cards: always locked to current month (not the filter dropdown) ──
+  const currentMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === currentMonthKey()),
+    [transactions],
+  );
+  const prevMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === prevMonthKey()),
+    [transactions],
   );
 
-  const comparisonMonthKey = useMemo(() => {
-    if (filterMonth === "all") return prevMonthKey();
-    const [y, m] = filterMonth.split("-").map(Number);
-    const d = new Date(y, m - 2, 1);
-    return d.toISOString().slice(0, 7);
-  }, [filterMonth]);
-
-  const comparisonMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === comparisonMonthKey),
-    [transactions, comparisonMonthKey],
-  );
-
-  const selectedMonthLabel = useMemo(() => {
-    if (filterMonth === "all") return "All time";
-    const [y, m] = filterMonth.split("-").map(Number);
+  const currentMonthLabel = useMemo(() => {
+    const [y, m] = currentMonthKey().split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, [filterMonth]);
+  }, []);
 
-  const comparisonMonthLabel = useMemo(() => {
-    const [y, m] = comparisonMonthKey.split("-").map(Number);
+  const prevMonthLabel = useMemo(() => {
+    const [y, m] = prevMonthKey().split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, [comparisonMonthKey]);
+  }, []);
 
-  const currentIncome  = selectedMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const currentExpense = selectedMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
-  const prevIncome     = comparisonMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const prevExpense    = comparisonMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const currentIncome  = currentMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const currentExpense = currentMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const prevIncome     = prevMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const prevExpense    = prevMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
 
   const incomePct  = prevIncome  > 0 ? (((currentIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
   const expensePct = prevExpense > 0 ? (((currentExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
@@ -531,42 +501,30 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4">
 
-      {/* ── Stats Cards ── */}
+      {/* ── Stats Cards — always show current month ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">
-            {selectedMonthLabel} income
-          </div>
-          <div className="text-[18px] font-bold text-[#1A1635]">
-            LKR {currentIncome.toLocaleString()}
-          </div>
-          {filterMonth !== "all" && incomePct !== null ? (
+          <div className="text-[12px] font-medium text-[#8B87A8]">{currentMonthLabel} income</div>
+          <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentIncome.toLocaleString()}</div>
+          {incomePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(incomePct) >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {comparisonMonthLabel}
+              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {prevMonthLabel}
             </div>
           ) : (
-            <div className="text-[11px] text-[#8B87A8]">
-              {filterMonth === "all" ? "Across all months" : "No data last month"}
-            </div>
+            <div className="text-[11px] text-[#8B87A8]">No data last month</div>
           )}
         </div>
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">
-            {selectedMonthLabel} expenses
-          </div>
-          <div className="text-[18px] font-bold text-[#1A1635]">
-            LKR {currentExpense.toLocaleString()}
-          </div>
-          {filterMonth !== "all" && expensePct !== null ? (
+          <div className="text-[12px] font-medium text-[#8B87A8]">{currentMonthLabel} expenses</div>
+          <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentExpense.toLocaleString()}</div>
+          {expensePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(expensePct) <= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {comparisonMonthLabel}
+              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {prevMonthLabel}
             </div>
           ) : (
-            <div className="text-[11px] text-[#8B87A8]">
-              {filterMonth === "all" ? "Across all months" : "No data last month"}
-            </div>
+            <div className="text-[11px] text-[#8B87A8]">No data last month</div>
           )}
         </div>
 
@@ -609,7 +567,6 @@ export default function TransactionsPage() {
                 </button>
               )}
             </div>
-
             {activeFilters > 0 && (
               <button
                 onClick={clearAllFilters}
@@ -622,7 +579,6 @@ export default function TransactionsPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-
             <select
               value={filterType}
               onChange={(e) => {
@@ -802,7 +758,6 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {/* ── Delete Confirm Modal ── */}
       {deleteTarget && (
         <ConfirmDeleteModal
           transaction={deleteTarget}

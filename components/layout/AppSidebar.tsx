@@ -24,17 +24,22 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const router = useRouter();
 
   const handleNavigation = (href: string) => {
+    // Reset transaction filters to current month whenever navigating to transactions
+    if (href === "/dashboard/transactions") {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      sessionStorage.setItem("txFilterMonth", currentMonth);
+    }
     router.push(href);
     onClose();
   };
 
   const handleLogout = async () => {
-  onClose();
-  await signOut({ 
-    callbackUrl: "/login",  // ← Changed from "/" to "/login"
-    redirect: true 
-  });
-};
+    onClose();
+    await signOut({
+      callbackUrl: "/login",
+      redirect: true,
+    });
+  };
 
   return (
     <>
