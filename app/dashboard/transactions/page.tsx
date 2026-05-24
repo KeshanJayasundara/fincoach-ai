@@ -15,17 +15,53 @@ import {
 /* ─────────────────────────────────────────────────────── */
 
 function currentMonthKey() {
-  return new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
-function prevMonthKey() {
-  const d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 7);
+// ── Handles both Prisma Date objects AND plain/ISO date strings ──
+function txMonthKey(tx: any): string {
+  const raw = tx.date;
+  if (!raw) return "";
+  // Prisma returns a JS Date object
+  if (raw instanceof Date) {
+    const y = raw.getFullYear();
+    const m = String(raw.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+  // Fallback: plain string "2025-05-15" or ISO "2025-05-15T00:00:00.000Z"
+  return String(raw).slice(0, 7);
 }
 
-function txMonthKey(tx: any) {
-  return new Date(tx.date).toISOString().slice(0, 7);
+function getPrevMonthKey(monthKey: string) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 2, 1);
+  const py = d.getFullYear();
+  const pm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${py}-${pm}`;
+}
+
+function monthLabel(monthKey: string) {
+  const [y, m] = monthKey.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
+}
+
+// ── Safe date display: handles both Date objects and strings ──
+function formatTxDate(raw: any): string {
+  if (!raw) return "";
+  if (raw instanceof Date) {
+    return raw.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+    });
+  }
+  // Plain string "2025-05-15" — parse parts to avoid UTC shift
+  const plain = String(raw).slice(0, 10);
+  const [y, m, d] = plain.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
 }
 
 /* ─────────────────────────────────────────────────────── */
@@ -382,26 +418,18 @@ export default function TransactionsPage() {
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
 
-  // ── FIX: always default to current month; reject any stale "all" in storage ──
-  const [filterMonth, setFilterMonth] = useState(() => {
+  const [filterMonth, setFilterMonth] = useState<string>(() => {
     if (typeof window === "undefined") return currentMonthKey();
     const stored = sessionStorage.getItem("txFilterMonth");
-    return stored && stored !== "all" ? stored : currentMonthKey();
+    return stored && /^\d{4}-\d{2}$/.test(stored)
+      ? stored
+      : currentMonthKey();
   });
 
   const [loading, setLoading]             = useState(true);
   const [deleteTarget, setDeleteTarget]   = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Clear any stale "all" value from sessionStorage on first mount
-  useEffect(() => {
-    const stored = sessionStorage.getItem("txFilterMonth");
-    if (!stored || stored === "all") {
-      sessionStorage.setItem("txFilterMonth", currentMonthKey());
-    }
-  }, []);
-
-  // Persist filterMonth so it survives in-session navigation
   useEffect(() => {
     sessionStorage.setItem("txFilterMonth", filterMonth);
   }, [filterMonth]);
@@ -434,47 +462,30 @@ export default function TransactionsPage() {
         tx.category.toLowerCase().includes(searchLower);
       const matchesType     = filterType === "all" || tx.type === filterType;
       const matchesCategory = filterCategory === "all" || tx.category === filterCategory;
-      const matchesMonth    = filterMonth === "all" || txMonthKey(tx) === filterMonth;
+      const matchesMonth    = txMonthKey(tx) === filterMonth;
       return matchesSearch && matchesType && matchesCategory && matchesMonth;
     });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  // ── Stats cards: driven by the selected filter month (falls back to current month when "all") ──
-  const selectedMonthKey = filterMonth === "all" ? currentMonthKey() : filterMonth;
+  const cardMonthKey     = filterMonth;
+  const prevCardMonthKey = getPrevMonthKey(cardMonthKey);
 
-  const selectedMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === selectedMonthKey),
-    [transactions, selectedMonthKey],
+  const cardMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === cardMonthKey),
+    [transactions, cardMonthKey],
+  );
+  const prevCardMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === prevCardMonthKey),
+    [transactions, prevCardMonthKey],
   );
 
-  const prevOfSelectedKey = useMemo(() => {
-    const [y, m] = selectedMonthKey.split("-").map(Number);
-    const d = new Date(y, m - 2, 1);
-    return d.toISOString().slice(0, 7);
-  }, [selectedMonthKey]);
+  const cardIncome  = cardMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const cardExpense = cardMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const prevIncome  = prevCardMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const prevExpense = prevCardMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
 
-  const prevOfSelectedTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === prevOfSelectedKey),
-    [transactions, prevOfSelectedKey],
-  );
-
-  const selectedMonthLabel = useMemo(() => {
-    const [y, m] = selectedMonthKey.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, [selectedMonthKey]);
-
-  const prevMonthLabel = useMemo(() => {
-    const [y, m] = prevOfSelectedKey.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, [prevOfSelectedKey]);
-
-  const currentIncome  = selectedMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const currentExpense = selectedMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
-  const prevIncome     = prevOfSelectedTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const prevExpense    = prevOfSelectedTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
-
-  const incomePct  = prevIncome  > 0 ? (((currentIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
-  const expensePct = prevExpense > 0 ? (((currentExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
+  const incomePct  = prevIncome  > 0 ? (((cardIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
+  const expensePct = prevExpense > 0 ? (((cardExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -494,8 +505,9 @@ export default function TransactionsPage() {
     const now = new Date();
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       months.push({
-        value: d.toISOString().slice(0, 7),
+        value: val,
         label: d.toLocaleString("default", { month: "long", year: "numeric" }),
       });
     }
@@ -505,7 +517,6 @@ export default function TransactionsPage() {
   const activeFilters = [
     filterType     !== "all",
     filterCategory !== "all",
-    filterMonth    !== currentMonthKey(),
     searchTerm     !== "",
   ].filter(Boolean).length;
 
@@ -513,21 +524,20 @@ export default function TransactionsPage() {
     setSearchTerm("");
     setFilterType("all");
     setFilterCategory("all");
-    setFilterMonth(currentMonthKey());
   };
 
   return (
     <div className="space-y-4">
 
-      {/* ── Stats Cards — driven by selected filter month ── */}
+      {/* ── Stats Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">{selectedMonthLabel} income</div>
-          <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentIncome.toLocaleString()}</div>
+          <div className="text-[12px] font-medium text-[#8B87A8]">{monthLabel(cardMonthKey)} income</div>
+          <div className="text-[18px] font-bold text-[#1A1635]">LKR {cardIncome.toLocaleString()}</div>
           {incomePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(incomePct) >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {prevMonthLabel}
+              {parseFloat(incomePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(incomePct))}% vs {monthLabel(prevCardMonthKey)}
             </div>
           ) : (
             <div className="text-[11px] text-[#8B87A8]">No data last month</div>
@@ -535,11 +545,11 @@ export default function TransactionsPage() {
         </div>
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">{selectedMonthLabel} expenses</div>
-          <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentExpense.toLocaleString()}</div>
+          <div className="text-[12px] font-medium text-[#8B87A8]">{monthLabel(cardMonthKey)} expenses</div>
+          <div className="text-[18px] font-bold text-[#1A1635]">LKR {cardExpense.toLocaleString()}</div>
           {expensePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(expensePct) <= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
-              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {prevMonthLabel}
+              {parseFloat(expensePct) >= 0 ? "↑" : "↓"} {Math.abs(parseFloat(expensePct))}% vs {monthLabel(prevCardMonthKey)}
             </div>
           ) : (
             <div className="text-[11px] text-[#8B87A8]">No data last month</div>
@@ -548,15 +558,15 @@ export default function TransactionsPage() {
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
           <div className="text-[12px] font-medium text-[#8B87A8]">
-            {activeFilters > 0 ? "Filtered results" : "Total transactions"}
+            {activeFilters > 0 ? "Filtered results" : `${monthLabel(cardMonthKey)} transactions`}
           </div>
           <div className="text-[18px] font-bold text-[#1A1635]">
-            {activeFilters > 0 ? filteredTransactions.length : transactions.length}
+            {filteredTransactions.length}
           </div>
           <div className="text-[11px] font-semibold text-[#8B87A8]">
             {activeFilters > 0
-              ? `of ${transactions.length} total · ${activeFilters} filter${activeFilters > 1 ? "s" : ""} active`
-              : `${transactions.filter((t) => t.type === TransactionType.Expense).length} expenses · ${transactions.filter((t) => t.type === TransactionType.Income).length} income`
+              ? `of ${cardMonthTxs.length} total · ${activeFilters} filter${activeFilters > 1 ? "s" : ""} active`
+              : `${cardMonthTxs.filter((t) => t.type === TransactionType.Expense).length} expenses · ${cardMonthTxs.filter((t) => t.type === TransactionType.Income).length} income`
             }
           </div>
         </div>
@@ -622,7 +632,6 @@ export default function TransactionsPage() {
               onChange={(e) => setFilterMonth(e.target.value)}
               className="w-full col-span-2 sm:col-span-1 px-3 py-2 text-[12px] border border-[#D1CCFF] rounded-lg bg-white focus:border-[#5B4FE8] outline-none cursor-pointer font-medium text-[#4A4568]"
             >
-              <option value="all">All Months</option>
               {getLastMonths().map((m) => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
@@ -647,12 +656,6 @@ export default function TransactionsPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
                   📂 {filterCategory}
                   <button onClick={() => setFilterCategory("all")}><X size={10} /></button>
-                </span>
-              )}
-              {filterMonth !== currentMonthKey() && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  📅 {filterMonth === "all" ? "All Months" : getLastMonths().find((m) => m.value === filterMonth)?.label ?? filterMonth}
-                  <button onClick={() => setFilterMonth(currentMonthKey())}><X size={10} /></button>
                 </span>
               )}
             </div>
@@ -748,9 +751,7 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-[12px] text-[#8B87A8]">
-                          {new Date(tx.date).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric",
-                          })}
+                          {formatTxDate(tx.date)}
                         </td>
                         <td className={`py-3 px-4 text-right text-[13px] font-semibold font-mono ${
                           tx.type === TransactionType.Income ? "text-[#16A34A]" : "text-[#DC2626]"
