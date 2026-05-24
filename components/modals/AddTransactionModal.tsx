@@ -1,4 +1,3 @@
-// components/modals/AddTransactionModal.tsx
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -24,12 +23,10 @@ interface AddTransactionModalProps {
   onSuccess?: () => void;
 }
 
-// ─── All valid enum values as a flat list (used by AI prompt) ───────────────
 const ALL_EXPENSE_VALUES  = ExpenseCategoriesList as string[];
 const ALL_INCOME_VALUES   = IncomeCategoriesList  as string[];
 const ALL_CATEGORY_VALUES = [...ALL_INCOME_VALUES, ...ALL_EXPENSE_VALUES];
 
-// ─── Match a raw string from Claude back to a valid TransactionCategory ──────
 function matchCategory(raw: string): TransactionCategory | "" {
   if (!raw) return "";
   const normalised = raw.trim().toLowerCase();
@@ -39,12 +36,34 @@ function matchCategory(raw: string): TransactionCategory | "" {
   return (found as TransactionCategory) ?? "";
 }
 
-// ─── Infer transaction type from category ────────────────────────────────────
 function inferType(cat: TransactionCategory | ""): TransactionType {
   if (!cat) return TransactionType.Expense;
   return (ALL_INCOME_VALUES as string[]).includes(cat)
     ? TransactionType.Income
     : TransactionType.Expense;
+}
+
+// ─── Image compression helper ────────────────────────────────────────────────
+// Resizes to max 800px on the longest side and compresses to JPEG q=0.72.
+// Reduces a typical phone photo from ~4 MB → ~120 KB before sending to Claude.
+async function compressImage(
+  dataUrl: string,
+  maxPx = 800,
+  quality = 0.72,
+): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Return raw base64 only (strip the data:image/jpeg;base64, prefix)
+      resolve(canvas.toDataURL("image/jpeg", quality).split(",")[1]);
+    };
+    img.src = dataUrl;
+  });
 }
 
 export default function AddTransactionModal({
@@ -61,15 +80,12 @@ export default function AddTransactionModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="relative w-full sm:max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[92dvh] flex flex-col">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-[#1A1635]">
@@ -87,7 +103,6 @@ export default function AddTransactionModal({
           </button>
         </div>
 
-        {/* Tab Switcher */}
         <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] shrink-0">
           {(["manual", "scan", "import"] as Tab[]).map((tab) => {
             const config = {
@@ -113,7 +128,6 @@ export default function AddTransactionModal({
           })}
         </div>
 
-        {/* Tab Content */}
         <div className="overflow-y-auto flex-1">
           {activeTab === "manual" && (
             <ManualTab onClose={onClose} onSuccess={onSuccess} />
@@ -131,7 +145,7 @@ export default function AddTransactionModal({
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  SEARCHABLE CATEGORY DROPDOWN (shared)                  */
+/*  SEARCHABLE CATEGORY DROPDOWN                           */
 /* ─────────────────────────────────────────────────────── */
 interface CategoryDropdownProps {
   categories: TransactionCategory[];
@@ -146,17 +160,14 @@ function CategoryDropdown({
   onChange,
   transactionType,
 }: CategoryDropdownProps) {
-  const [open, setOpen]       = useState(false);
-  const [search, setSearch]   = useState("");
-  const containerRef          = useRef<HTMLDivElement>(null);
-  const searchRef             = useRef<HTMLInputElement>(null);
+  const [open, setOpen]     = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef        = useRef<HTMLDivElement>(null);
+  const searchRef           = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
         setSearch("");
       }
@@ -208,9 +219,7 @@ function CategoryDropdown({
         </span>
         <ChevronDown
           size={13}
-          className={`text-[#8B87A8] shrink-0 transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
+          className={`text-[#8B87A8] shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -221,12 +230,9 @@ function CategoryDropdown({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
               style={{ background: accentBg, color: accentColor }}
             >
-              {isExpense ? "🔴" : "🟢"}{" "}
-              {isExpense ? "Expense" : "Income"} categories
+              {isExpense ? "🔴" : "🟢"} {isExpense ? "Expense" : "Income"} categories
             </span>
-            <span className="text-[10px] text-[#8B87A8]">
-              {categories.length} total
-            </span>
+            <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
           </div>
 
           <div className="px-3 py-2 border-b border-[#EAE8FB]">
@@ -241,10 +247,7 @@ function CategoryDropdown({
                 className="flex-1 bg-transparent text-[12px] text-[#1A1635] placeholder:text-[#C4C0DC] outline-none"
               />
               {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="text-[#8B87A8] hover:text-[#4A4568]"
-                >
+                <button onClick={() => setSearch("")} className="text-[#8B87A8] hover:text-[#4A4568]">
                   <X size={11} />
                 </button>
               )}
@@ -257,11 +260,7 @@ function CategoryDropdown({
                 <li key={cat}>
                   <button
                     type="button"
-                    onClick={() => {
-                      onChange(cat);
-                      setOpen(false);
-                      setSearch("");
-                    }}
+                    onClick={() => { onChange(cat); setOpen(false); setSearch(""); }}
                     className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
                       value === cat
                         ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold"
@@ -269,9 +268,7 @@ function CategoryDropdown({
                     }`}
                   >
                     {cat}
-                    {value === cat && (
-                      <Check size={12} className="text-[#5B4FE8] shrink-0" />
-                    )}
+                    {value === cat && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
                   </button>
                 </li>
               ))
@@ -306,16 +303,15 @@ function ManualTab({
     date?: string;
   };
 }) {
-  const [type, setType]             = useState<TransactionType>(prefill?.type ?? TransactionType.Expense);
-  const [amount, setAmount]         = useState(prefill?.amount ?? "");
-  const [currency, setCurrency]     = useState<Currency>(prefill?.currency ?? Currency.LKR);
-  const [category, setCategory]     = useState<TransactionCategory | "">(prefill?.category ?? "");
+  const [type, setType]               = useState<TransactionType>(prefill?.type ?? TransactionType.Expense);
+  const [amount, setAmount]           = useState(prefill?.amount ?? "");
+  const [currency, setCurrency]       = useState<Currency>(prefill?.currency ?? Currency.LKR);
+  const [category, setCategory]       = useState<TransactionCategory | "">(prefill?.category ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
-  const [date, setDate]             = useState(prefill?.date ?? new Date().toISOString().slice(0, 10));
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState("");
+  const [date, setDate]               = useState(prefill?.date ?? new Date().toISOString().slice(0, 10));
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
 
-  // Update fields if prefill changes (e.g. after scan)
   useEffect(() => {
     if (!prefill) return;
     if (prefill.type)        setType(prefill.type);
@@ -355,7 +351,6 @@ function ManualTab({
 
   return (
     <div className="p-5 space-y-4">
-      {/* Type Toggle */}
       <div>
         <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
           Type
@@ -379,7 +374,6 @@ function ManualTab({
         </div>
       </div>
 
-      {/* Amount + Currency */}
       <div>
         <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
           Amount
@@ -404,7 +398,6 @@ function ManualTab({
         </div>
       </div>
 
-      {/* Category */}
       <div>
         <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
           Category
@@ -417,11 +410,9 @@ function ManualTab({
         />
       </div>
 
-      {/* Description */}
       <div>
         <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
-          Description{" "}
-          <span className="font-normal">(optional)</span>
+          Description <span className="font-normal">(optional)</span>
         </label>
         <input
           type="text"
@@ -432,7 +423,6 @@ function ManualTab({
         />
       </div>
 
-      {/* Date */}
       <div>
         <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
           Date
@@ -463,11 +453,7 @@ function ManualTab({
           disabled={loading}
           className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
         >
-          {loading ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <Check size={13} />
-          )}
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
           {loading ? "Saving…" : "Save Transaction"}
         </button>
       </div>
@@ -490,11 +476,9 @@ interface ScannedData {
   confidence: "high" | "medium" | "low";
 }
 
-
 async function scanReceiptWithAI(base64Image: string): Promise<ScannedData> {
   const today = new Date().toISOString().slice(0, 10);
 
-  // ── Call our own Next.js API route (avoids CORS + keeps API key server-side) ──
   const response = await fetch("/api/scan-receipt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -515,7 +499,6 @@ async function scanReceiptWithAI(base64Image: string): Promise<ScannedData> {
     : TransactionType.Expense;
   const finalType = category ? inferType(category) : type;
 
-  // Validate / normalise currency
   const validCurrencies = Object.values(Currency) as string[];
   const currency = validCurrencies.includes(parsed.currency)
     ? (parsed.currency as Currency)
@@ -544,31 +527,28 @@ function ScanTab({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
-  // ── state machine: idle → captured → scanning → review ──
   type Stage = "idle" | "captured" | "scanning" | "review" | "error";
-  const [stage, setStage]         = useState<Stage>("idle");
-  const [preview, setPreview]     = useState<string | null>(null);   // data-URL
-  const [base64, setBase64]       = useState<string>("");             // raw base64
-  const [scanned, setScanned]     = useState<ScannedData | null>(null);
-  const [errMsg, setErrMsg]       = useState("");
-  const [editMode, setEditMode]   = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [saveErr, setSaveErr]     = useState("");
+  const [stage, setStage]       = useState<Stage>("idle");
+  const [preview, setPreview]   = useState<string | null>(null);
+  const [base64, setBase64]     = useState<string>("");
+  const [scanned, setScanned]   = useState<ScannedData | null>(null);
+  const [errMsg, setErrMsg]     = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [saveErr, setSaveErr]   = useState("");
 
-  // Editable review fields
-  const [rType,    setRType]    = useState<TransactionType>(TransactionType.Expense);
-  const [rAmount,  setRAmount]  = useState("");
-  const [rCur,     setRCur]     = useState<Currency>(Currency.LKR);
-  const [rCat,     setRCat]     = useState<TransactionCategory | "">("");
-  const [rDesc,    setRDesc]    = useState("");
-  const [rDate,    setRDate]    = useState(new Date().toISOString().slice(0, 10));
+  const [rType,   setRType]   = useState<TransactionType>(TransactionType.Expense);
+  const [rAmount, setRAmount] = useState("");
+  const [rCur,    setRCur]    = useState<Currency>(Currency.LKR);
+  const [rCat,    setRCat]    = useState<TransactionCategory | "">("");
+  const [rDesc,   setRDesc]   = useState("");
+  const [rDate,   setRDate]   = useState(new Date().toISOString().slice(0, 10));
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isTouchDevice =
     typeof window !== "undefined" &&
     window.matchMedia("(pointer: coarse)").matches;
 
-  // ── helpers ──────────────────────────────────────────────
   const reset = () => {
     setStage("idle");
     setPreview(null);
@@ -588,7 +568,6 @@ function ScanTab({
     setRDate(s.date);
   };
 
-  // ── file picker / camera ──────────────────────────────────
   const openPicker = () => {
     if (inputRef.current) {
       inputRef.current.value = "";
@@ -596,23 +575,24 @@ function ScanTab({
     }
   };
 
-  const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Compress on capture before storing base64 ────────────────────────────
+  const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string;
-      setPreview(dataUrl);
-      // Extract raw base64 (strip "data:image/...;base64,")
-      const b64 = dataUrl.split(",")[1] ?? "";
-      setBase64(b64);
+      setPreview(dataUrl); // keep full-res preview for display
+
+      // Compress to ~120 KB before sending to Claude
+      const compressed = await compressImage(dataUrl);
+      setBase64(compressed);
       setStage("captured");
     };
     reader.readAsDataURL(file);
   };
 
-  // ── scan ─────────────────────────────────────────────────
   const handleScan = async () => {
     if (!base64) return;
     setStage("scanning");
@@ -628,7 +608,6 @@ function ScanTab({
     }
   };
 
-  // ── save ─────────────────────────────────────────────────
   const handleSave = async () => {
     if (!rAmount || !rCat) {
       setSaveErr("Amount and category are required.");
@@ -662,10 +641,8 @@ function ScanTab({
     low:    { label: "Low confidence",    bg: "#FEE2E2", color: "#7F1D1D" },
   }[scanned.confidence];
 
-  // ── render ────────────────────────────────────────────────
   return (
     <div className="p-5 space-y-4">
-      {/* Hidden file input */}
       <input
         ref={inputRef}
         type="file"
@@ -675,7 +652,7 @@ function ScanTab({
         onChange={handleCapture}
       />
 
-      {/* ── IDLE: drop zone ── */}
+      {/* ── IDLE ── */}
       {stage === "idle" && (
         <>
           <div
@@ -706,10 +683,7 @@ function ScanTab({
               "Keep the receipt flat and fully in frame",
               "AI will auto-detect amount, date & category",
             ].map((tip) => (
-              <div
-                key={tip}
-                className="flex items-center gap-2 text-[11px] text-[#4A4568]"
-              >
+              <div key={tip} className="flex items-center gap-2 text-[11px] text-[#4A4568]">
                 <div className="w-1 h-1 rounded-full bg-[#9B93F5]" />
                 {tip}
               </div>
@@ -718,15 +692,11 @@ function ScanTab({
         </>
       )}
 
-      {/* ── CAPTURED: preview + scan button ── */}
+      {/* ── CAPTURED ── */}
       {stage === "captured" && preview && (
         <>
           <div className="relative rounded-xl overflow-hidden border border-[#EAE8FB]">
-            <img
-              src={preview}
-              alt="Receipt"
-              className="w-full object-cover max-h-56"
-            />
+            <img src={preview} alt="Receipt" className="w-full object-cover max-h-56" />
             <button
               onClick={reset}
               className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full flex items-center justify-center text-[#4A4568] border border-[#EAE8FB]"
@@ -734,7 +704,6 @@ function ScanTab({
               <X size={12} />
             </button>
           </div>
-
           <div className="flex gap-2">
             <button
               onClick={reset}
@@ -752,17 +721,12 @@ function ScanTab({
         </>
       )}
 
-      {/* ── SCANNING: loading state ── */}
+      {/* ── SCANNING ── */}
       {stage === "scanning" && (
         <div className="flex flex-col items-center justify-center gap-4 py-10">
           {preview && (
             <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-[#EAE8FB] opacity-60">
-              <img
-                src={preview}
-                alt="Scanning"
-                className="w-full h-full object-cover"
-              />
-              {/* Animated scan line */}
+              <img src={preview} alt="Scanning" className="w-full h-full object-cover" />
               <div className="absolute inset-0 overflow-hidden">
                 <div
                   className="absolute left-0 right-0 h-0.5 bg-[#5B4FE8]/70"
@@ -790,15 +754,13 @@ function ScanTab({
         </div>
       )}
 
-      {/* ── ERROR state ── */}
+      {/* ── ERROR ── */}
       {stage === "error" && (
         <>
           <div className="bg-[#FEE2E2] border border-[#FCA5A5] rounded-xl px-4 py-3 flex items-start gap-2.5">
             <AlertCircle size={14} className="text-[#DC2626] shrink-0 mt-0.5" />
             <div>
-              <div className="text-[12px] font-semibold text-[#7F1D1D]">
-                Scan failed
-              </div>
+              <div className="text-[12px] font-semibold text-[#7F1D1D]">Scan failed</div>
               <div className="text-[11px] text-[#991B1B] mt-0.5">{errMsg}</div>
             </div>
           </div>
@@ -811,10 +773,9 @@ function ScanTab({
         </>
       )}
 
-      {/* ── REVIEW: editable form pre-filled by AI ── */}
+      {/* ── REVIEW ── */}
       {stage === "review" && scanned && (
         <div className="space-y-4">
-          {/* Success + confidence banner */}
           <div className="bg-[#EEF0FD] border border-[#C7C3F8] rounded-xl px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles size={14} className="text-[#5B4FE8]" />
@@ -825,25 +786,17 @@ function ScanTab({
             {confidencePill && (
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{
-                  background: confidencePill.bg,
-                  color:      confidencePill.color,
-                }}
+                style={{ background: confidencePill.bg, color: confidencePill.color }}
               >
                 {confidencePill.label}
               </span>
             )}
           </div>
 
-          {/* Thumbnail + edit toggle */}
           <div className="flex items-center gap-3">
             {preview && (
               <div className="w-14 h-14 rounded-lg overflow-hidden border border-[#EAE8FB] shrink-0">
-                <img
-                  src={preview}
-                  alt="Receipt"
-                  className="w-full h-full object-cover"
-                />
+                <img src={preview} alt="Receipt" className="w-full h-full object-cover" />
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -867,7 +820,6 @@ function ScanTab({
             </button>
           </div>
 
-          {/* ── Read-only summary OR editable form ── */}
           {!editMode ? (
             <div className="bg-[#F8F7FF] rounded-xl border border-[#EAE8FB] divide-y divide-[#EAE8FB]">
               {[
@@ -875,25 +827,22 @@ function ScanTab({
                   label: "Type",
                   value: rType === TransactionType.Expense ? "Expense" : "Income",
                   chip: true,
-                  chipBg:
-                    rType === TransactionType.Expense ? "#FEE2E2" : "#DCFCE7",
-                  chipColor:
-                    rType === TransactionType.Expense ? "#DC2626" : "#16A34A",
+                  chipBg:    rType === TransactionType.Expense ? "#FEE2E2" : "#DCFCE7",
+                  chipColor: rType === TransactionType.Expense ? "#DC2626" : "#16A34A",
                 },
-                { label: "Amount", value: `${rCur} ${parseFloat(rAmount || "0").toLocaleString()}` },
-                { label: "Category", value: rCat || "—" },
+                { label: "Amount",      value: `${rCur} ${parseFloat(rAmount || "0").toLocaleString()}` },
+                { label: "Category",    value: rCat || "—" },
                 { label: "Description", value: rDesc || "—" },
-                { label: "Date", value: rDate
+                {
+                  label: "Date",
+                  value: rDate
                     ? new Date(rDate).toLocaleDateString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
                       })
                     : "—",
                 },
               ].map((row: any) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between px-4 py-2.5"
-                >
+                <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
                   <span className="text-[11px] text-[#8B87A8]">{row.label}</span>
                   {row.chip ? (
                     <span
@@ -911,9 +860,7 @@ function ScanTab({
               ))}
             </div>
           ) : (
-            /* Full editable form */
             <div className="space-y-3">
-              {/* Type */}
               <div>
                 <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
                   Type
@@ -937,7 +884,6 @@ function ScanTab({
                 </div>
               </div>
 
-              {/* Amount + Currency */}
               <div>
                 <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
                   Amount
@@ -962,7 +908,6 @@ function ScanTab({
                 </div>
               </div>
 
-              {/* Category */}
               <div>
                 <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
                   Category
@@ -975,7 +920,6 @@ function ScanTab({
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
                   Description
@@ -989,7 +933,6 @@ function ScanTab({
                 />
               </div>
 
-              {/* Date */}
               <div>
                 <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
                   Date
@@ -1010,7 +953,6 @@ function ScanTab({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-2 pt-1">
             <button
               onClick={reset}
@@ -1023,11 +965,7 @@ function ScanTab({
               disabled={saving}
               className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              {saving ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Save size={13} />
-              )}
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
               {saving ? "Saving…" : "Confirm & Save"}
             </button>
           </div>
@@ -1038,7 +976,7 @@ function ScanTab({
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  IMPORT TAB (unchanged from original)                   */
+/*  IMPORT TAB                                             */
 /* ─────────────────────────────────────────────────────── */
 function ImportTab({
   onClose,
@@ -1047,10 +985,10 @@ function ImportTab({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
-  const [file, setFile]         = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
+  const [file, setFile]           = useState<File | null>(null);
+  const [dragging, setDragging]   = useState(false);
   const [importing, setImporting] = useState(false);
-  const [imported, setImported] = useState(false);
+  const [imported, setImported]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -1091,18 +1029,14 @@ function ImportTab({
             <div className="text-center">
               {file ? (
                 <>
-                  <div className="text-[13px] font-bold text-[#5B4FE8]">
-                    {file.name}
-                  </div>
+                  <div className="text-[13px] font-bold text-[#5B4FE8]">{file.name}</div>
                   <div className="text-[11px] text-[#8B87A8] mt-0.5">
                     {(file.size / 1024).toFixed(1)} KB · Click to change
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="text-[13px] font-bold text-[#1A1635]">
-                    Drop your file here
-                  </div>
+                  <div className="text-[13px] font-bold text-[#1A1635]">Drop your file here</div>
                   <div className="text-[11px] text-[#8B87A8] mt-0.5">
                     or click to browse · CSV, XLS, XLSX
                   </div>
@@ -1115,9 +1049,7 @@ function ImportTab({
             type="file"
             accept=".csv,.xls,.xlsx"
             className="hidden"
-            onChange={(e) =>
-              e.target.files?.[0] && setFile(e.target.files[0])
-            }
+            onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
           />
 
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3">
@@ -1155,13 +1087,9 @@ function ImportTab({
               className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {importing ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" /> Importing…
-                </>
+                <><Loader2 size={13} className="animate-spin" /> Importing…</>
               ) : (
-                <>
-                  <Upload size={13} /> Import File
-                </>
+                <><Upload size={13} /> Import File</>
               )}
             </button>
           </div>
@@ -1177,9 +1105,7 @@ function ImportTab({
           <div className="space-y-3">
             <div className="flex justify-between text-[12px]">
               <span className="text-[#8B87A8]">File</span>
-              <span className="font-bold text-[#1A1635] truncate max-w-[180px]">
-                {file?.name}
-              </span>
+              <span className="font-bold text-[#1A1635] truncate max-w-[180px]">{file?.name}</span>
             </div>
             <div className="flex justify-between text-[12px]">
               <span className="text-[#8B87A8]">Transactions found</span>

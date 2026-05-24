@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const ALL_CATEGORY_VALUES = [
+    const ALL_EXPENSE_VALUES = [
       "Food & Grocery", "Dining Out", "Coffee & Snacks", "Takeaway / Delivery",
       "Alcohol & Bar", "Rent / Mortgage", "Utilities", "Internet & Phone",
       "Home Insurance", "Home Maintenance", "Furniture & Appliances",
@@ -26,11 +26,16 @@ export async function POST(req: NextRequest) {
       "Marketing & Ads", "Office Supplies", "Professional Fees", "Loan Repayment",
       "Credit Card Bill", "Bank Fees", "Taxes", "Savings & Deposit",
       "Charity & Donation", "Childcare", "Pet Care", "Family Support", "Other",
+    ];
+
+    const ALL_INCOME_VALUES = [
       "Salary / Income", "Freelance Income", "Business Income",
       "Investment Returns", "Rental Income", "Dividends", "Bonus / Incentive",
       "Side Hustle", "Government Benefit", "Pension", "Gift Received",
       "Refund / Cashback", "Other Income",
     ];
+
+    const ALL_CATEGORY_VALUES = [...ALL_INCOME_VALUES, ...ALL_EXPENSE_VALUES];
 
     const prompt = `You are a receipt/bill OCR and categorisation assistant for a personal finance app.
 
@@ -70,23 +75,23 @@ Rules:
     const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "Content-Type":      "application/json",
+        "x-api-key":         process.env.ANTHROPIC_API_KEY!,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 300,
+        model:      "claude-haiku-4-5-20251001", // ← Haiku: 3-4× faster than Sonnet for OCR
+        max_tokens: 256,                          // ← was 1000; JSON response is ~120 tokens
         messages: [
           {
             role: "user",
             content: [
               {
-                type: "image",
+                type:   "image",
                 source: {
-                  type: "base64",
+                  type:       "base64",
                   media_type: "image/jpeg",
-                  data: base64Image,
+                  data:       base64Image,
                 },
               },
               { type: "text", text: prompt },
