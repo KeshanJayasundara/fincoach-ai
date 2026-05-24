@@ -490,92 +490,24 @@ interface ScannedData {
   confidence: "high" | "medium" | "low";
 }
 
-// Build the AI prompt — injects all valid category values so Claude can pick exactly
-function buildScanPrompt(): string {
-  return `You are a receipt/bill OCR and categorisation assistant for a personal finance app.
-
-Analyse the receipt image and extract the following fields. Respond ONLY with a valid JSON object — no markdown, no explanation.
-
-JSON shape:
-{
-  "amount": "<number as string, e.g. 2450.00>",
-  "currency": "<one of: LKR, USD, EUR, GBP, AED, SGD, INR, AUD — default LKR if unclear>",
-  "type": "<expense or income — almost always expense for a receipt>",
-  "category": "<pick EXACTLY one value from the allowed list below>",
-  "description": "<short merchant name or bill summary, max 60 chars>",
-  "date": "<YYYY-MM-DD — today if not found on receipt>",
-  "confidence": "<high | medium | low>"
-}
-
-ALLOWED CATEGORY VALUES (copy verbatim, case-sensitive):
-${ALL_CATEGORY_VALUES.map((v) => `"${v}"`).join(", ")}
-
-Rules:
-- For supermarket / grocery receipts → "Food & Grocery"
-- For restaurant / cafe receipts → "Dining Out" or "Coffee & Snacks"
-- For pharmacy / chemist → "Pharmacy"
-- For fuel stations → "Fuel & Parking"
-- For utility bills (CEB, LECO, water) → "Utilities"
-- For telecom bills (Dialog, Mobitel, SLT) → "Internet & Phone"
-- For clothing stores → "Clothing & Fashion"
-- For electronics shops → "Electronics & Tech"
-- For ride-hailing (PickMe, Uber) → "Taxi / Ride Share"
-- For hospital / medical → "Health & Medical"
-- For streaming (Netflix, Spotify) → "Streaming Services"
-- For hotel / accommodation → "Hotels & Stay"
-- If genuinely unsure → "Other"
-- If the amount is ambiguous or not found, set amount to "0"
-- The date field must be ISO 8601 (YYYY-MM-DD)`;
-}
 
 async function scanReceiptWithAI(base64Image: string): Promise<ScannedData> {
   const today = new Date().toISOString().slice(0, 10);
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  // ── Call our own Next.js API route (avoids CORS + keeps API key server-side) ──
+  const response = await fetch("/api/scan-receipt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model:      "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type:   "image",
-              source: {
-                type:       "base64",
-                media_type: "image/jpeg",
-                data:       base64Image,
-              },
-            },
-            { type: "text", text: buildScanPrompt() },
-          ],
-        },
-      ],
-    }),
+    body: JSON.stringify({ base64Image }),
   });
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`AI API error: ${response.status} — ${err}`);
+  const json = await response.json();
+
+  if (!response.ok || json.error) {
+    throw new Error(json.error || `Server error: ${response.status}`);
   }
 
-  const data  = await response.json();
-  const raw   = (data.content as any[])
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-
-  // Strip any accidental markdown fences
-  const cleaned = raw.replace(/```json|```/gi, "").trim();
-
-  let parsed: any;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    throw new Error("AI returned invalid JSON. Please try again.");
-  }
+  const parsed = json.result;
 
   const category  = matchCategory(parsed.category ?? "");
   const type      = parsed.type === "income"
@@ -598,7 +530,7 @@ async function scanReceiptWithAI(base64Image: string): Promise<ScannedData> {
     date:        /^\d{4}-\d{2}-\d{2}$/.test(parsed.date ?? "")
                    ? parsed.date
                    : today,
-    rawText:     cleaned,
+    rawText:     JSON.stringify(parsed),
     confidence:  (["high", "medium", "low"] as const).includes(parsed.confidence)
                    ? parsed.confidence
                    : "low",
