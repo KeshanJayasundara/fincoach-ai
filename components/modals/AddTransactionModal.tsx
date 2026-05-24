@@ -1105,7 +1105,7 @@ function ImportTab({
           <div className="space-y-3">
             <div className="flex justify-between text-[12px]">
               <span className="text-[#8B87A8]">File</span>
-              <span className="font-bold text-[#1A1635] truncate max-w-[180px]">{file?.name}</span>
+              <span className="font-bold text-[#1A1635] truncate max-w-180px">{file?.name}</span>
             </div>
             <div className="flex justify-between text-[12px]">
               <span className="text-[#8B87A8]">Transactions found</span>
