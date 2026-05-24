@@ -382,15 +382,24 @@ export default function TransactionsPage() {
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
 
-  // Always default to current month; persist across same-session navigation
+  // ── FIX: always default to current month; reject any stale "all" in storage ──
   const [filterMonth, setFilterMonth] = useState(() => {
     if (typeof window === "undefined") return currentMonthKey();
-    return sessionStorage.getItem("txFilterMonth") ?? currentMonthKey();
+    const stored = sessionStorage.getItem("txFilterMonth");
+    return stored && stored !== "all" ? stored : currentMonthKey();
   });
 
   const [loading, setLoading]             = useState(true);
   const [deleteTarget, setDeleteTarget]   = useState<any>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Clear any stale "all" value from sessionStorage on first mount
+  useEffect(() => {
+    const stored = sessionStorage.getItem("txFilterMonth");
+    if (!stored || stored === "all") {
+      sessionStorage.setItem("txFilterMonth", currentMonthKey());
+    }
+  }, []);
 
   // Persist filterMonth so it survives in-session navigation
   useEffect(() => {
@@ -430,30 +439,39 @@ export default function TransactionsPage() {
     });
   }, [transactions, searchTerm, filterType, filterCategory, filterMonth]);
 
-  // ── Stats cards: always locked to current month (not the filter dropdown) ──
-  const currentMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === currentMonthKey()),
-    [transactions],
-  );
-  const prevMonthTxs = useMemo(
-    () => transactions.filter((t) => txMonthKey(t) === prevMonthKey()),
-    [transactions],
+  // ── Stats cards: driven by the selected filter month (falls back to current month when "all") ──
+  const selectedMonthKey = filterMonth === "all" ? currentMonthKey() : filterMonth;
+
+  const selectedMonthTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === selectedMonthKey),
+    [transactions, selectedMonthKey],
   );
 
-  const currentMonthLabel = useMemo(() => {
-    const [y, m] = currentMonthKey().split("-").map(Number);
+  const prevOfSelectedKey = useMemo(() => {
+    const [y, m] = selectedMonthKey.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    return d.toISOString().slice(0, 7);
+  }, [selectedMonthKey]);
+
+  const prevOfSelectedTxs = useMemo(
+    () => transactions.filter((t) => txMonthKey(t) === prevOfSelectedKey),
+    [transactions, prevOfSelectedKey],
+  );
+
+  const selectedMonthLabel = useMemo(() => {
+    const [y, m] = selectedMonthKey.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, []);
+  }, [selectedMonthKey]);
 
   const prevMonthLabel = useMemo(() => {
-    const [y, m] = prevMonthKey().split("-").map(Number);
+    const [y, m] = prevOfSelectedKey.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
-  }, []);
+  }, [prevOfSelectedKey]);
 
-  const currentIncome  = currentMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const currentExpense = currentMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
-  const prevIncome     = prevMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
-  const prevExpense    = prevMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const currentIncome  = selectedMonthTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const currentExpense = selectedMonthTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
+  const prevIncome     = prevOfSelectedTxs.filter((t) => t.type === TransactionType.Income).reduce((s, t) => s + t.amount, 0);
+  const prevExpense    = prevOfSelectedTxs.filter((t) => t.type === TransactionType.Expense).reduce((s, t) => s + t.amount, 0);
 
   const incomePct  = prevIncome  > 0 ? (((currentIncome  - prevIncome)  / prevIncome)  * 100).toFixed(1) : null;
   const expensePct = prevExpense > 0 ? (((currentExpense - prevExpense) / prevExpense) * 100).toFixed(1) : null;
@@ -501,11 +519,11 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4">
 
-      {/* ── Stats Cards — always show current month ── */}
+      {/* ── Stats Cards — driven by selected filter month ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">{currentMonthLabel} income</div>
+          <div className="text-[12px] font-medium text-[#8B87A8]">{selectedMonthLabel} income</div>
           <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentIncome.toLocaleString()}</div>
           {incomePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(incomePct) >= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
@@ -517,7 +535,7 @@ export default function TransactionsPage() {
         </div>
 
         <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
-          <div className="text-[12px] font-medium text-[#8B87A8]">{currentMonthLabel} expenses</div>
+          <div className="text-[12px] font-medium text-[#8B87A8]">{selectedMonthLabel} expenses</div>
           <div className="text-[18px] font-bold text-[#1A1635]">LKR {currentExpense.toLocaleString()}</div>
           {expensePct !== null ? (
             <div className={`text-[11px] font-semibold ${parseFloat(expensePct) <= 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
