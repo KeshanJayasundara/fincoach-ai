@@ -10,10 +10,6 @@ import {
   ExpenseCategoriesList,
 } from "@/lib/enums";
 
-/* ─────────────────────────────────────────────────────── */
-/*  HELPERS                                                */
-/* ─────────────────────────────────────────────────────── */
-
 function currentMonthKey() {
   const now = new Date();
   const y = now.getFullYear();
@@ -21,23 +17,29 @@ function currentMonthKey() {
   return `${y}-${m}`;
 }
 
-// ── Handles both Prisma Date objects AND plain/ISO date strings ──
+function getAvailableMonthKeys() {
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+}
+
 function txMonthKey(tx: any): string {
   const raw = tx.date;
   if (!raw) return "";
-  // Prisma returns a JS Date object
   if (raw instanceof Date) {
     const y = raw.getFullYear();
     const m = String(raw.getMonth() + 1).padStart(2, "0");
     return `${y}-${m}`;
   }
-  // Fallback: plain string "2025-05-15" or ISO "2025-05-15T00:00:00.000Z"
   return String(raw).slice(0, 7);
 }
 
 function getPrevMonthKey(monthKey: string) {
   const [y, m] = monthKey.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
+  const d = new Date(y, m - 2, 1); // m-2 because m is 1-based, and we want prev month (0-based - 1)
   const py = d.getFullYear();
   const pm = String(d.getMonth() + 1).padStart(2, "0");
   return `${py}-${pm}`;
@@ -48,7 +50,6 @@ function monthLabel(monthKey: string) {
   return new Date(y, m - 1, 1).toLocaleString("default", { month: "long" });
 }
 
-// ── Safe date display: handles both Date objects and strings ──
 function formatTxDate(raw: any): string {
   if (!raw) return "";
   if (raw instanceof Date) {
@@ -56,7 +57,6 @@ function formatTxDate(raw: any): string {
       month: "short", day: "numeric", year: "numeric",
     });
   }
-  // Plain string "2025-05-15" — parse parts to avoid UTC shift
   const plain = String(raw).slice(0, 10);
   const [y, m, d] = plain.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("en-US", {
@@ -64,9 +64,6 @@ function formatTxDate(raw: any): string {
   });
 }
 
-/* ─────────────────────────────────────────────────────── */
-/*  ICON + BADGE MAPS                                      */
-/* ─────────────────────────────────────────────────────── */
 const getCategoryIcon = (category: string): { icon: string; bg: string } => {
   const icons: Record<string, { icon: string; bg: string }> = {
     "Salary / Income":        { icon: "💼", bg: "#DCFCE7" },
@@ -217,9 +214,6 @@ const getCategoryBadge = (category: string): { label: string; bg: string; color:
   return map[category] ?? { label: "Other", bg: "#F3E8FF", color: "#4A4568" };
 };
 
-/* ─────────────────────────────────────────────────────── */
-/*  CONFIRM DELETE MODAL                                   */
-/* ─────────────────────────────────────────────────────── */
 function ConfirmDeleteModal({
   transaction,
   onConfirm,
@@ -269,9 +263,6 @@ function ConfirmDeleteModal({
   );
 }
 
-/* ─────────────────────────────────────────────────────── */
-/*  SEARCHABLE CATEGORY FILTER DROPDOWN                    */
-/* ─────────────────────────────────────────────────────── */
 interface FilterCategoryDropdownProps {
   categories: string[];
   value: "all" | TransactionCategory;
@@ -409,21 +400,21 @@ function FilterCategoryDropdown({
   );
 }
 
-/* ─────────────────────────────────────────────────────── */
-/*  PAGE                                                   */
-/* ─────────────────────────────────────────────────────── */
 export default function TransactionsPage() {
   const [transactions, setTransactions]     = useState<any[]>([]);
   const [searchTerm, setSearchTerm]         = useState("");
   const [filterType, setFilterType]         = useState<"all" | TransactionType>("all");
   const [filterCategory, setFilterCategory] = useState<"all" | TransactionCategory>("all");
 
+  // ── FIX: clamp stored month to valid options to prevent stale-month bug ──
   const [filterMonth, setFilterMonth] = useState<string>(() => {
     if (typeof window === "undefined") return currentMonthKey();
     const stored = sessionStorage.getItem("txFilterMonth");
-    return stored && /^\d{4}-\d{2}$/.test(stored)
-      ? stored
-      : currentMonthKey();
+    if (stored && /^\d{4}-\d{2}$/.test(stored)) {
+      const valid = getAvailableMonthKeys();
+      if (valid.includes(stored)) return stored;
+    }
+    return currentMonthKey();
   });
 
   const [loading, setLoading]             = useState(true);
@@ -500,18 +491,15 @@ export default function TransactionsPage() {
     setDeleteLoading(false);
   };
 
+  // ── FIX: use getAvailableMonthKeys() so the list is consistent with validation ──
   const getLastMonths = () => {
-    const months = [];
-    const now = new Date();
-    for (let i = 0; i < 6; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      months.push({
+    return getAvailableMonthKeys().map((val) => {
+      const [y, m] = val.split("-").map(Number);
+      return {
         value: val,
-        label: d.toLocaleString("default", { month: "long", year: "numeric" }),
-      });
-    }
-    return months;
+        label: new Date(y, m - 1, 1).toLocaleString("default", { month: "long", year: "numeric" }),
+      };
+    });
   };
 
   const activeFilters = [
@@ -525,6 +513,14 @@ export default function TransactionsPage() {
     setFilterType("all");
     setFilterCategory("all");
   };
+
+  // ── FIX: month filter chip now shows the actual filterMonth label, not a hardcoded value ──
+  const filterMonthLabel = (() => {
+    const [y, m] = filterMonth.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+  })();
+
+  const isNonCurrentMonth = filterMonth !== currentMonthKey();
 
   return (
     <div className="space-y-4">
@@ -638,7 +634,8 @@ export default function TransactionsPage() {
             </select>
           </div>
 
-          {activeFilters > 0 && (
+          {/* ── FIX: active filter chips — month chip only shown when not current month ── */}
+          {(activeFilters > 0 || isNonCurrentMonth) && (
             <div className="flex flex-wrap gap-1.5">
               {searchTerm && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
@@ -656,6 +653,12 @@ export default function TransactionsPage() {
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
                   📂 {filterCategory}
                   <button onClick={() => setFilterCategory("all")}><X size={10} /></button>
+                </span>
+              )}
+              {isNonCurrentMonth && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
+                  📅 {filterMonthLabel}
+                  <button onClick={() => setFilterMonth(currentMonthKey())}><X size={10} /></button>
                 </span>
               )}
             </div>
