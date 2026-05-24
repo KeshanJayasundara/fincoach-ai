@@ -18,10 +18,9 @@ const getBarColor = (progress: number) => {
   return "from-blue-500 to-sky-400";
 };
 
-// ✅ Custom confirm modal — window.confirm වෙනුවට
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-2xl z-10 w-full max-w-sm p-6">
         <div className="text-4xl mb-3 text-center">🗑️</div>
@@ -69,11 +68,11 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: { goal: any; onClose:
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden z-10">
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden z-10">
 
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB]">
           <div>
@@ -123,9 +122,10 @@ function UpdateProgressModal({ goal, onClose, onSuccess }: { goal: any; onClose:
                 </span>
                 <span className="font-bold text-[#5B4FE8]">{previewProgress}%</span>
               </div>
+              {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
               <div className="h-1.5 bg-white rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
+                  className="h-full bg-linear-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
                   style={{ width: `${previewProgress}%` }}
                 />
               </div>
@@ -160,7 +160,7 @@ export default function GoalsPage() {
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null); // ✅ custom confirm
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   useEffect(() => { loadGoals(); }, []);
 
@@ -179,11 +179,9 @@ export default function GoalsPage() {
       loadGoals();
     } catch {
       setDeleteTarget(null);
-      alert("Failed to delete goal");
     }
   };
 
-  // ✅ Deadline format fix
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return "No deadline set";
     try {
@@ -203,8 +201,9 @@ export default function GoalsPage() {
         <p className="text-[#8B87A8] text-sm">Track your financial targets</p>
       </div>
 
-      <div className="bg-gradient-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3 flex-wrap">
-        <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center text-base flex-shrink-0">🤖</div>
+      {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
+      <div className="bg-linear-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3 flex-wrap">
+        <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center text-base shrink-0">🤖</div>
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-bold text-[#C7C3F8] mb-0.5">AI Goal Coach</div>
           <div className="text-[12px] text-white/60 leading-relaxed">
@@ -233,7 +232,6 @@ export default function GoalsPage() {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="min-w-0">
                     <div className="text-[14px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{goal.name}</div>
-                    {/* ✅ Fixed deadline display */}
                     <div className="text-[11px] text-[#8B87A8] mt-0.5">{formatDeadline(goal.deadline)}</div>
                   </div>
                   <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full shrink-0" style={{ background: statusStyle.bg, color: statusStyle.color }}>
@@ -246,8 +244,9 @@ export default function GoalsPage() {
                   <span className="text-[#8B87A8] font-mono">of LKR {goal.targetAmount.toLocaleString()}</span>
                 </div>
 
+                {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
                 <div className="h-1.5 bg-[#EAE8FB] rounded-full overflow-hidden">
-                  <div className={`h-full bg-gradient-to-r ${barColor} rounded-full transition-all duration-500`} style={{ width: `${progress}%` }} />
+                  <div className={`h-full bg-linear-to-r ${barColor} rounded-full transition-all duration-500`} style={{ width: `${progress}%` }} />
                 </div>
 
                 <div className="flex justify-between text-[11px] text-[#8B87A8] mt-2 flex-wrap gap-1">
@@ -255,7 +254,8 @@ export default function GoalsPage() {
                   <span>LKR {remaining.toLocaleString()} remaining</span>
                 </div>
 
-                <div className="bg-gradient-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2 mt-2.5 text-[12px] text-[#4A4568] leading-relaxed">
+                {/* ✅ bg-gradient-to-r → bg-linear-to-r */}
+                <div className="bg-linear-to-r from-[#EEF0FD] to-[#F0F7FF] border border-[#C7C3F8] rounded-lg px-3 py-2 mt-2.5 text-[12px] text-[#4A4568] leading-relaxed">
                   <strong className="text-[#5B4FE8]">💡</strong>{" "}
                   {progress >= 80 ? "You're ahead of schedule! Keep it up 🎉"
                     : progress >= 30 ? "At current rate, you can finish this goal on time!"
@@ -265,16 +265,16 @@ export default function GoalsPage() {
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={() => setSelectedGoal(goal)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#EEF0FD] hover:bg-[#E0DDFC] text-[#5B4FE8] text-[12px] font-semibold rounded-xl transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#EEF0FD] hover:bg-[#E0DDFC] text-[#5B4FE8] text-[12px] font-semibold rounded-xl transition-colors"
                   >
                     <Pencil size={13} /> Update Progress
                   </button>
-                  {/* ✅ Custom delete — confirm() නෑ */}
+                  {/* ✅ Mobile touch-friendly delete — larger tap area */}
                   <button
                     onClick={() => setDeleteTarget(goal)}
-                    className="flex items-center justify-center px-3 py-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"
+                    className="flex items-center justify-center min-w-44px min-h-44px px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
@@ -291,7 +291,6 @@ export default function GoalsPage() {
         />
       )}
 
-      {/* ✅ Custom confirm modal */}
       {deleteTarget && (
         <ConfirmModal
           message={`"${deleteTarget.name}" goal permanently delete වෙනවා.`}
