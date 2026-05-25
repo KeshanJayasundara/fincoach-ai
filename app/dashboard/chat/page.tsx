@@ -42,10 +42,23 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   const [input,    setInput]    = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const messageCountRef = useRef(0);
+  const messageCountRef = useRef(1); // start at 1 to match initial message count
 
+  // ── Fix mobile viewport height (address bar resize issue) ──
   useEffect(() => {
-    // Skip scroll on initial mount; only scroll down when a new message arrives
+    const setVh = () => {
+      document.documentElement.style.setProperty(
+        "--vh",
+        `${window.innerHeight * 0.01}px`
+      );
+    };
+    setVh();
+    window.addEventListener("resize", setVh);
+    return () => window.removeEventListener("resize", setVh);
+  }, []);
+
+  // ── Only auto-scroll when a NEW message is added (not on initial mount/reload) ──
+  useEffect(() => {
     if (messages.length > messageCountRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -97,7 +110,10 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8F7FF] min-h-0">
+    <div
+      className="flex flex-col bg-[#F8F7FF] min-h-0 overflow-hidden"
+      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
+    >
 
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]">
