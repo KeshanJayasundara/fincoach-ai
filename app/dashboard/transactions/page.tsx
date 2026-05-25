@@ -329,7 +329,7 @@ function FilterCategoryDropdown({
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1.5 w-full min-w-[220px] bg-white border border-[#D1CCFF] rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1.5 w-full min-w-220px bg-white border border-[#D1CCFF] rounded-xl shadow-lg overflow-hidden">
           <div className="px-3 pt-2.5 pb-1.5 flex items-center gap-2 border-b border-[#EAE8FB]">
             <span
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
@@ -691,7 +691,7 @@ export default function TransactionsPage() {
 
         {(loading || filteredTransactions.length > 0) && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px]">
+            <table className="w-full min-w-600px">
               <thead>
                 <tr className="border-b border-[#EAE8FB]">
                   <th className="text-left py-3 px-4 text-[10.5px] font-bold text-[#8B87A8] uppercase tracking-[0.06em]">Description</th>
