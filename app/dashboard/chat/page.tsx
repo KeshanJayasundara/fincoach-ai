@@ -3,6 +3,16 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { sendAIMessage, type ChatMessage } from "@/actions/ai";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPaperPlane,
+  faRobot,
+  faBolt,
+  faChartPie,
+  faBullseye,
+  faLightbulb,
+  faEnvelope,
+} from "@fortawesome/free-solid-svg-icons";
 
 type Message = {
   id: number;
@@ -11,10 +21,10 @@ type Message = {
 };
 
 const SUGGESTIONS = [
-  "📊 Show my spending breakdown",
-  "🎯 How do I reach my goals faster?",
-  "💡 Tips to save more this month",
-  "📧 Summarize my finances",
+  { icon: faChartPie,  text: "Show my spending breakdown" },
+  { icon: faBullseye,  text: "How do I reach my goals faster?" },
+  { icon: faLightbulb, text: "Tips to save more this month" },
+  { icon: faEnvelope,  text: "Summarize my finances" },
 ];
 
 export default function AIChatPage() {
@@ -78,13 +88,13 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8F7FF]">
+    <div className="flex flex-col h-full bg-[#F8F7FF] min-h-0">
 
-      {/* Header */}
-      <div className="border-b border-[#EAE8FB] bg-white px-5 py-3 flex items-center justify-between flex-shrink-0">
+      {/* ── Header ── */}
+      <div className="border-b border-[#EAE8FB] bg-white px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-lg">
-            🤖
+          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
+            <FontAwesomeIcon icon={faRobot} className="text-base" />
           </div>
           <div>
             <div className="font-semibold text-[#1A1635] text-sm">FinCoach AI</div>
@@ -94,14 +104,15 @@ export default function AIChatPage() {
           </div>
         </div>
         {queriesLeft !== null && (
-          <div className="text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2 py-1 rounded-full">
-            ⚡ {queriesLeft} queries left
+          <div className="flex items-center gap-1.5 text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2.5 py-1 rounded-full border border-[#EAE8FB]">
+            <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
+            {queriesLeft} queries left
           </div>
         )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-3.5 bg-[#F8F7FF]">
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -109,27 +120,26 @@ export default function AIChatPage() {
           >
             {/* AI Avatar */}
             {msg.role === "ai" && (
-              <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-sm flex-shrink-0 mt-1">
-                🤖
+              <div className="w-7 h-7 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0 mt-1">
+                <FontAwesomeIcon icon={faRobot} className="text-xs" />
               </div>
             )}
 
             {/* Bubble */}
             <div
-              className={`max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed
+              className={`max-w-[85%] sm:max-w-[78%] px-3.5 py-2.5 text-[13px] leading-relaxed
                 ${msg.role === "user"
-                  ? "bg-[#5B4FE8] text-white rounded-2xl rounded-br-none"
-                  : "bg-white border border-[#EAE8FB] text-[#1A1635] rounded-2xl rounded-bl-none"
+                  ? "bg-[#5B4FE8] text-white rounded-2xl rounded-br-none shadow-sm"
+                  : "bg-white border border-[#EAE8FB] text-[#1A1635] rounded-2xl rounded-bl-none shadow-sm"
                 }`}
             >
-              {/* AI label */}
               {msg.role === "ai" && (
-                <div className="text-[10px] text-[#8B87A8] mb-1.5 font-medium">
+                <div className="text-[10px] text-[#8B87A8] mb-1.5 font-semibold flex items-center gap-1">
+                  <FontAwesomeIcon icon={faRobot} className="text-[#9B93F5]" />
                   FinCoach AI
                 </div>
               )}
 
-              {/* Content */}
               {msg.role === "ai" ? (
                 <div className="
                   prose prose-sm max-w-none
@@ -144,13 +154,13 @@ export default function AIChatPage() {
                   <ReactMarkdown>{msg.content}</ReactMarkdown>
                 </div>
               ) : (
-                <span>{msg.content}</span>
+                <span className="text-[13px]">{msg.content}</span>
               )}
             </div>
 
             {/* User Avatar */}
             {msg.role === "user" && (
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-1">
+              <div className="w-7 h-7 rounded-full bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
                 K
               </div>
             )}
@@ -160,14 +170,14 @@ export default function AIChatPage() {
         {/* Typing indicator */}
         {isTyping && (
           <div className="flex gap-2 justify-start">
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-sm flex-shrink-0">
-              🤖
+            <div className="w-7 h-7 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
+              <FontAwesomeIcon icon={faRobot} className="text-xs" />
             </div>
-            <div className="bg-white border border-[#EAE8FB] rounded-2xl rounded-bl-none px-4 py-3">
-              <div className="flex gap-1.5">
-                <div className="w-2 h-2 bg-[#8B87A8] rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-[#8B87A8] rounded-full animate-bounce [animation-delay:0.15s]" />
-                <div className="w-2 h-2 bg-[#8B87A8] rounded-full animate-bounce [animation-delay:0.3s]" />
+            <div className="bg-white border border-[#EAE8FB] rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
+              <div className="flex gap-1.5 items-center">
+                <div className="w-2 h-2 bg-[#9B93F5] rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-[#9B93F5] rounded-full animate-bounce [animation-delay:0.15s]" />
+                <div className="w-2 h-2 bg-[#9B93F5] rounded-full animate-bounce [animation-delay:0.3s]" />
               </div>
             </div>
           </div>
@@ -176,22 +186,25 @@ export default function AIChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestion Pills */}
-      <div className="flex gap-2 flex-wrap px-5 py-3 bg-white border-t border-[#EAE8FB]">
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => sendMessage(s)}
-            disabled={isTyping}
-            className="px-3 py-1.5 text-[11px] font-medium text-[#4A4568] bg-white border border-[#D1CCFF] rounded-full hover:border-[#5B4FE8] hover:bg-[#EEF0FD] hover:text-[#3C3489] transition-all disabled:opacity-50"
-          >
-            {s}
-          </button>
-        ))}
+      {/* ── Suggestion Pills ── */}
+      <div className="px-3 sm:px-5 py-2.5 bg-white border-t border-[#EAE8FB] shrink-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s.text}
+              onClick={() => sendMessage(s.text)}
+              disabled={isTyping}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-[#4A4568] bg-white border border-[#D1CCFF] rounded-full hover:border-[#5B4FE8] hover:bg-[#EEF0FD] hover:text-[#3C3489] transition-all disabled:opacity-50 whitespace-nowrap shrink-0"
+            >
+              <FontAwesomeIcon icon={s.icon} className="text-[#9B93F5] text-[10px]" />
+              {s.text}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Input */}
-      <div className="flex gap-2 px-5 py-3 bg-white border-t border-[#EAE8FB]">
+      {/* ── Input ── */}
+      <div className="flex gap-2 px-3 sm:px-5 py-3 bg-white border-t border-[#EAE8FB] shrink-0">
         <input
           type="text"
           value={input}
@@ -199,22 +212,14 @@ export default function AIChatPage() {
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           placeholder="Ask about your finances..."
           disabled={isTyping}
-          className="flex-1 px-4 py-2.5 bg-[#F8F7FF] border border-[#D1CCFF] rounded-xl text-[13px] text-[#1A1635] outline-none focus:border-[#5B4FE8] focus:bg-white transition-all disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 bg-[#F8F7FF] border border-[#D1CCFF] rounded-xl text-[13px] text-[#1A1635] outline-none focus:border-[#5B4FE8] focus:bg-white transition-all disabled:opacity-50 min-w-0"
         />
         <button
           onClick={() => sendMessage()}
           disabled={!input.trim() || isTyping}
-          className="w-10 h-10 bg-[#5B4FE8] text-white rounded-xl flex items-center justify-center disabled:opacity-50 hover:bg-[#7B72EC] transition-all"
+          className="w-10 h-10 bg-[#5B4FE8] text-white rounded-xl flex items-center justify-center disabled:opacity-50 hover:bg-[#7B72EC] active:bg-[#534AB7] transition-all shrink-0"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M13 8H3M8 3l5 5-5 5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <FontAwesomeIcon icon={faPaperPlane} className="text-sm" />
         </button>
       </div>
     </div>
