@@ -41,10 +41,15 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   ]);
   const [input,    setInput]    = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef  = useRef<HTMLDivElement>(null);
+  const messageCountRef = useRef(0);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Skip scroll on initial mount; only scroll down when a new message arrives
+    if (messages.length > messageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    messageCountRef.current = messages.length;
   }, [messages]);
 
   const buildHistory = (msgs: Message[]): ChatMessage[] =>
