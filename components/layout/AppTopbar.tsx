@@ -228,10 +228,10 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
       {/* ── AI Coach header (replaces standard bar on /chat) ── */}
       {isChat ? (
         <header className="h-14 bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
-          {/* AI Coach identity row */}
           <div className="h-full px-3 md:px-4 flex items-center justify-between">
+
+            {/* Left — hamburger + identity */}
             <div className="flex items-center gap-2 md:gap-3">
-              {/* Hamburger — mobile only, sits inline before the avatar */}
               <button
                 onClick={onMenuClick}
                 className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#4A4568] shrink-0"
@@ -250,30 +250,20 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {queriesLeft !== null && queriesLeft !== undefined && (
-                <div className="flex items-center gap-1.5 text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2.5 py-1 rounded-full border border-[#EAE8FB]">
+            {/* Right — queries left badge ONLY (no bell, no avatar) */}
+            <div className="flex items-center">
+              {queriesLeft !== null && queriesLeft !== undefined ? (
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-[#F8F7FF] px-3 py-1.5 rounded-full border border-[#EAE8FB]">
                   <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
-                  {queriesLeft} queries left
+                  <span className="text-[#5B4FE8]">{queriesLeft}</span>
+                  <span className="text-[#8B87A8]">queries left</span>
                 </div>
+              ) : (
+                /* Skeleton pill while count hasn't loaded yet */
+                <div className="h-7 w-28 rounded-full bg-[#EAE8FB] animate-pulse" />
               )}
-
-              <button className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0">
-                <Bell className="w-4 h-4" />
-                {notifications > 0 && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {notifications}
-                  </div>
-                )}
-              </button>
-
-              <div
-                onClick={() => router.push("/dashboard/settings")}
-                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
-              >
-                K
-              </div>
             </div>
+
           </div>
         </header>
       ) : (
