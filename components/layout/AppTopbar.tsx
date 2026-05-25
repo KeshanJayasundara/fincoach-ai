@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
@@ -10,8 +10,6 @@ import { faRobot, faBolt } from "@fortawesome/free-solid-svg-icons";
 
 interface AppTopbarProps {
   onMenuClick: () => void;
-  /** Passed in from the chat page so the topbar can display live query count */
-  queriesLeft?: number | null;
 }
 
 /* ── Add Goal Modal ── */
@@ -24,11 +22,11 @@ function AddGoalModal({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
-  const [name, setName]               = useState("");
+  const [name, setName]                 = useState("");
   const [targetAmount, setTargetAmount] = useState("");
-  const [deadline, setDeadline]       = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState("");
+  const [deadline, setDeadline]         = useState("");
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState("");
 
   if (!isOpen) return null;
 
@@ -193,14 +191,26 @@ function AddGoalModal({
 }
 
 /* ── Topbar ── */
-export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) {
+export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const router   = useRouter();
   const pathname = usePathname();
-  const [notifications]       = useState(3);
+
+  const [notifications]                         = useState(3);
   const [showAddModal, setShowAddModal]         = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [queriesLeft, setQueriesLeft]           = useState<number | null>(null);
 
   const isChat = pathname.includes("/chat");
+
+  // Listen for query count updates fired from AIChatPage
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ queriesLeft: number }>).detail;
+      setQueriesLeft(detail.queriesLeft);
+    };
+    window.addEventListener("fincoach:queries-update", handler);
+    return () => window.removeEventListener("fincoach:queries-update", handler);
+  }, []);
 
   const getPageConfig = () => {
     if (pathname === "/dashboard")
@@ -225,7 +235,7 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
 
   return (
     <>
-      {/* ── AI Coach header (replaces standard bar on /chat) ── */}
+      {/* ── AI Coach header ── */}
       {isChat ? (
         <header className="h-14 bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
           <div className="h-full px-3 md:px-4 flex items-center justify-between">
@@ -250,16 +260,15 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
               </div>
             </div>
 
-            {/* Right — queries left badge ONLY (no bell, no avatar) */}
+            {/* Right — queries left badge */}
             <div className="flex items-center">
-              {queriesLeft !== null && queriesLeft !== undefined ? (
+              {queriesLeft !== null ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-[#F8F7FF] px-3 py-1.5 rounded-full border border-[#EAE8FB]">
                   <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
                   <span className="text-[#5B4FE8]">{queriesLeft}</span>
                   <span className="text-[#8B87A8]">queries left</span>
                 </div>
               ) : (
-                /* Skeleton pill while count hasn't loaded yet */
                 <div className="h-7 w-28 rounded-full bg-[#EAE8FB] animate-pulse" />
               )}
             </div>
@@ -267,7 +276,7 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
           </div>
         </header>
       ) : (
-        /* ── Standard header for all other pages ── */
+        /* ── Standard header ── */
         <header className="h-14 md:h-14.5 bg-white border-b border-[#EAE8FB] flex items-center justify-between px-3 md:px-5 sticky top-0 z-30 shrink-0">
 
           {/* Left */}

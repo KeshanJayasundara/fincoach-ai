@@ -7,6 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPaperPlane,
   faRobot,
+  faBolt,
   faChartPie,
   faBullseye,
   faLightbulb,
@@ -26,12 +27,7 @@ const SUGGESTIONS = [
   { icon: faEnvelope,  text: "Summarize my finances" },
 ];
 
-interface AIChatPageProps {
-  /** Called whenever queriesLeft changes so the layout/topbar can display it */
-  onQueriesLeftChange?: (count: number) => void;
-}
-
-export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
+export default function AIChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id:      1,
@@ -41,28 +37,10 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   ]);
   const [input,    setInput]    = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef  = useRef<HTMLDivElement>(null);
-  const messageCountRef = useRef(1); // start at 1 to match initial message count
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // ── Fix mobile viewport height (address bar resize issue) ──
   useEffect(() => {
-    const setVh = () => {
-      document.documentElement.style.setProperty(
-        "--vh",
-        `${window.innerHeight * 0.01}px`
-      );
-    };
-    setVh();
-    window.addEventListener("resize", setVh);
-    return () => window.removeEventListener("resize", setVh);
-  }, []);
-
-  // ── Only auto-scroll when a NEW message is added (not on initial mount/reload) ──
-  useEffect(() => {
-    if (messages.length > messageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-    messageCountRef.current = messages.length;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const buildHistory = (msgs: Message[]): ChatMessage[] =>
@@ -93,8 +71,12 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
         { id: Date.now() + 1, role: "ai", content: result.reply },
       ]);
 
-      const left = result.queriesLimit - result.queriesUsed;
-      onQueriesLeftChange?.(left);
+      // Fire event so AppTopbar can update its queriesLeft display
+      window.dispatchEvent(
+        new CustomEvent("fincoach:queries-update", {
+          detail: { queriesLeft: result.queriesLimit - result.queriesUsed },
+        })
+      );
     } catch {
       setMessages(prev => [
         ...prev,
@@ -110,10 +92,7 @@ export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   };
 
   return (
-    <div
-      className="flex flex-col bg-[#F8F7FF] min-h-0 overflow-hidden"
-      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
-    >
+    <div className="flex flex-col h-full bg-[#F8F7FF] min-h-0">
 
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]">
