@@ -227,9 +227,9 @@ export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) 
     <>
       {/* ── AI Coach header (replaces standard bar on /chat) ── */}
       {isChat ? (
-        <header className="bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
+        <header className="h-14 bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
           {/* AI Coach identity row */}
-          <div className="px-3 md:px-4 py-3 flex items-center justify-between">
+          <div className="h-full px-3 md:px-4 flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
               {/* Hamburger — mobile only, sits inline before the avatar */}
               <button
