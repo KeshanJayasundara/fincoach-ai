@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb, DollarSign } from "lucide-react";
+import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRobot, faBolt } from "@fortawesome/free-solid-svg-icons";
 
 interface AppTopbarProps {
   onMenuClick: () => void;
+  /** Passed in from the chat page so the topbar can display live query count */
+  queriesLeft?: number | null;
 }
 
-/* ── Add Goal Modal — refined to match full design language ── */
+/* ── Add Goal Modal ── */
 function AddGoalModal({
   isOpen,
   onClose,
@@ -189,12 +193,14 @@ function AddGoalModal({
 }
 
 /* ── Topbar ── */
-export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
+export default function AppTopbar({ onMenuClick, queriesLeft }: AppTopbarProps) {
   const router   = useRouter();
   const pathname = usePathname();
   const [notifications]       = useState(3);
   const [showAddModal, setShowAddModal]         = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+
+  const isChat = pathname.includes("/chat");
 
   const getPageConfig = () => {
     if (pathname === "/dashboard")
@@ -219,72 +225,115 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
   return (
     <>
-      <header className="h-14 md:h-14.5 bg-white border-b border-[#EAE8FB] flex items-center justify-between px-3 md:px-5 sticky top-0 z-30 shrink-0">
+      {/* ── AI Coach header (replaces standard bar on /chat) ── */}
+      {isChat ? (
+        <header className="bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
+          {/* AI Coach identity row */}
+          <div className="px-3 md:px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-3">
+              {/* Hamburger — mobile only, sits inline before the avatar */}
+              <button
+                onClick={onMenuClick}
+                className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#4A4568] shrink-0"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
 
-        {/* Left */}
-        <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
-          <button
-            onClick={onMenuClick}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#4A4568] shrink-0"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-
-          <div className="flex flex-col min-w-0">
-            <h1 className="text-[14px] md:text-[15px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{title}</h1>
-            {greeting && (
-              <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:block truncate">{greeting}</p>
-            )}
-          </div>
-
-          {pathname === "/dashboard" && (
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-[#EEF0FD] border border-[#C7C3F8] rounded-full cursor-pointer text-[11px] md:text-[11.5px] font-bold text-[#3C3489] whitespace-nowrap shrink-0 ml-1 md:ml-2">
-              🏥 Healthcare
-              <span className="text-[10px] opacity-70">▾</span>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
+                <FontAwesomeIcon icon={faRobot} className="text-base" />
+              </div>
+              <div>
+                <div className="font-semibold text-[#1A1635] text-sm">FinCoach AI</div>
+                <div className="text-[10px] text-[#8B87A8] font-medium">
+                  Powered by Claude · Your real data
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-          {showAddButton && addAction && (
+            <div className="flex items-center gap-2">
+              {queriesLeft !== null && queriesLeft !== undefined && (
+                <div className="flex items-center gap-1.5 text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2.5 py-1 rounded-full border border-[#EAE8FB]">
+                  <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
+                  {queriesLeft} queries left
+                </div>
+              )}
+
+              <button className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0">
+                <Bell className="w-4 h-4" />
+                {notifications > 0 && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {notifications}
+                  </div>
+                )}
+              </button>
+
+              <div
+                onClick={() => router.push("/dashboard/settings")}
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
+              >
+                K
+              </div>
+            </div>
+          </div>
+        </header>
+      ) : (
+        /* ── Standard header for all other pages ── */
+        <header className="h-14 md:h-14.5 bg-white border-b border-[#EAE8FB] flex items-center justify-between px-3 md:px-5 sticky top-0 z-30 shrink-0">
+
+          {/* Left */}
+          <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <button
-              onClick={addAction}
-              className="flex items-center justify-center gap-1.5 w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-[#5B4FE8] hover:bg-[#7B72EC] text-white rounded-lg text-[12px] font-medium transition-all shrink-0"
+              onClick={onMenuClick}
+              className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#4A4568] shrink-0"
             >
-              <Plus className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline whitespace-nowrap">{addButtonLabel}</span>
+              <Menu className="w-4 h-4" />
             </button>
-          )}
 
-          {pathname.includes("/chat") && (
-            <>
-              <div className="flex sm:hidden items-center justify-center w-8 h-8 bg-[#F8F7FF] rounded-lg border border-[#EAE8FB]">
-                <span className="text-[11px]">⚡</span>
-              </div>
-              <div className="hidden sm:block text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2 py-1 rounded-full whitespace-nowrap border border-[#EAE8FB]">
-                ⚡ 3 queries left
-              </div>
-            </>
-          )}
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-[14px] md:text-[15px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{title}</h1>
+              {greeting && (
+                <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:block truncate">{greeting}</p>
+              )}
+            </div>
 
-          <button className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0">
-            <Bell className="w-4 h-4" />
-            {notifications > 0 && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                {notifications}
+            {pathname === "/dashboard" && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-[#EEF0FD] border border-[#C7C3F8] rounded-full cursor-pointer text-[11px] md:text-[11.5px] font-bold text-[#3C3489] whitespace-nowrap shrink-0 ml-1 md:ml-2">
+                🏥 Healthcare
+                <span className="text-[10px] opacity-70">▾</span>
               </div>
             )}
-          </button>
-
-          <div
-            onClick={() => router.push("/dashboard/settings")}
-            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
-          >
-            K
           </div>
-        </div>
-      </header>
+
+          {/* Right */}
+          <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+            {showAddButton && addAction && (
+              <button
+                onClick={addAction}
+                className="flex items-center justify-center gap-1.5 w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-1.5 bg-[#5B4FE8] hover:bg-[#7B72EC] text-white rounded-lg text-[12px] font-medium transition-all shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline whitespace-nowrap">{addButtonLabel}</span>
+              </button>
+            )}
+
+            <button className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0">
+              <Bell className="w-4 h-4" />
+              {notifications > 0 && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {notifications}
+                </div>
+              )}
+            </button>
+
+            <div
+              onClick={() => router.push("/dashboard/settings")}
+              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
+            >
+              K
+            </div>
+          </div>
+        </header>
+      )}
 
       <AddTransactionModal
         isOpen={showAddModal}

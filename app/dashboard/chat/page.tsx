@@ -7,7 +7,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPaperPlane,
   faRobot,
-  faBolt,
   faChartPie,
   faBullseye,
   faLightbulb,
@@ -27,7 +26,12 @@ const SUGGESTIONS = [
   { icon: faEnvelope,  text: "Summarize my finances" },
 ];
 
-export default function AIChatPage() {
+interface AIChatPageProps {
+  /** Called whenever queriesLeft changes so the layout/topbar can display it */
+  onQueriesLeftChange?: (count: number) => void;
+}
+
+export default function AIChatPage({ onQueriesLeftChange }: AIChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id:      1,
@@ -35,9 +39,8 @@ export default function AIChatPage() {
       content: "Hello! 👋 I'm FinCoach AI. I have access to your real financial data. Ask me anything about your spending, savings, or goals!",
     },
   ]);
-  const [input,       setInput]       = useState("");
-  const [isTyping,    setIsTyping]    = useState(false);
-  const [queriesLeft, setQueriesLeft] = useState<number | null>(null);
+  const [input,    setInput]    = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,7 +75,8 @@ export default function AIChatPage() {
         { id: Date.now() + 1, role: "ai", content: result.reply },
       ]);
 
-      setQueriesLeft(result.queriesLimit - result.queriesUsed);
+      const left = result.queriesLimit - result.queriesUsed;
+      onQueriesLeftChange?.(left);
     } catch {
       setMessages(prev => [
         ...prev,
@@ -90,27 +94,6 @@ export default function AIChatPage() {
   return (
     <div className="flex flex-col h-full bg-[#F8F7FF] min-h-0">
 
-      {/* ── Header ── */}
-      <div className="border-b border-[#EAE8FB] bg-white px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
-            <FontAwesomeIcon icon={faRobot} className="text-base" />
-          </div>
-          <div>
-            <div className="font-semibold text-[#1A1635] text-sm">FinCoach AI</div>
-            <div className="text-[10px] text-[#8B87A8] font-medium">
-              Powered by Claude · Your real data
-            </div>
-          </div>
-        </div>
-        {queriesLeft !== null && (
-          <div className="flex items-center gap-1.5 text-[11px] text-[#8B87A8] font-medium bg-[#F8F7FF] px-2.5 py-1 rounded-full border border-[#EAE8FB]">
-            <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
-            {queriesLeft} queries left
-          </div>
-        )}
-      </div>
-
       {/* ── Messages ── */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]">
         {messages.map((msg) => (
@@ -120,7 +103,7 @@ export default function AIChatPage() {
           >
             {/* AI Avatar */}
             {msg.role === "ai" && (
-              <div className="w-7 h-7 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0 mt-1">
+              <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0 mt-1">
                 <FontAwesomeIcon icon={faRobot} className="text-xs" />
               </div>
             )}
@@ -160,7 +143,7 @@ export default function AIChatPage() {
 
             {/* User Avatar */}
             {msg.role === "user" && (
-              <div className="w-7 h-7 rounded-full bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1">
                 K
               </div>
             )}
@@ -170,7 +153,7 @@ export default function AIChatPage() {
         {/* Typing indicator */}
         {isTyping && (
           <div className="flex gap-2 justify-start">
-            <div className="w-7 h-7 rounded-xl bg-linear-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white shrink-0">
               <FontAwesomeIcon icon={faRobot} className="text-xs" />
             </div>
             <div className="bg-white border border-[#EAE8FB] rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
