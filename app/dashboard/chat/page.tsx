@@ -37,10 +37,17 @@ export default function AIChatPage() {
   ]);
   const [input,    setInput]    = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   const buildHistory = (msgs: Message[]): ChatMessage[] =>
@@ -95,7 +102,10 @@ export default function AIChatPage() {
     <div className="flex flex-col h-full bg-[#F8F7FF] min-h-0">
 
       {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3.5 bg-[#F8F7FF]"
+      >
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -165,8 +175,6 @@ export default function AIChatPage() {
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* ── Suggestion Pills ── */}
