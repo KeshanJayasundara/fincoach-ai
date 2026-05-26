@@ -123,7 +123,7 @@ export default function SettingsPage() {
                   onClick={() => toggleNotification("monthlyReport")}
                   className={`w-9 h-5 rounded-full relative transition-all ${notifications.monthlyReport ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
-                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.monthlyReport ? "left-[18px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.monthlyReport ? "left-18px" : "left-0.5"}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
@@ -135,7 +135,7 @@ export default function SettingsPage() {
                   onClick={() => toggleNotification("spendingAlerts")}
                   className={`w-9 h-5 rounded-full relative transition-all ${notifications.spendingAlerts ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
-                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.spendingAlerts ? "left-[18px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.spendingAlerts ? "left-18px" : "left-0.5"}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
@@ -147,7 +147,7 @@ export default function SettingsPage() {
                   onClick={() => toggleNotification("goalMilestones")}
                   className={`w-9 h-5 rounded-full relative transition-all ${notifications.goalMilestones ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
-                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.goalMilestones ? "left-[18px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.goalMilestones ? "left-18px" : "left-0.5"}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3">
@@ -159,7 +159,7 @@ export default function SettingsPage() {
                   onClick={() => toggleNotification("weeklyDigest")}
                   className={`w-9 h-5 rounded-full relative transition-all ${notifications.weeklyDigest ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
-                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.weeklyDigest ? "left-[18px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.weeklyDigest ? "left-18px" : "left-0.5"}`} />
                 </button>
               </div>
             </div>
