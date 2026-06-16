@@ -255,12 +255,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               <div>
                 <div className="font-semibold text-[#1A1635] text-sm">FinCoach AI</div>
                 <div className="text-[10px] text-[#8B87A8] font-medium">
-                  Powered by Claude · Your real data
+                  Your real data
                 </div>
               </div>
             </div>
 
-            {/* Right — queries left badge */}
+            {/* queries left count part */}
             <div className="flex items-center">
               {queriesLeft !== null ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-[#F8F7FF] px-3 py-1.5 rounded-full border border-[#EAE8FB]">

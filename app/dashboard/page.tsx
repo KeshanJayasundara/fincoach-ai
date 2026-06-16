@@ -1,50 +1,33 @@
-// page.tsx
-"use client";
-
-import { useEffect, useState } from "react";
+// app/dashboard/page.tsx
+import { getDashboardData } from "@/actions/dashboard";
 import StatsGrid from "@/components/dashboard/StatsGrid";
 import SpendingChart from "@/components/dashboard/SpendingChart";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import QuickAIInsights from "@/components/dashboard/QuickAIInsights";
 import SpendingBreakdown from "@/components/dashboard/SpendingBreakdown";
 
-export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setTimeout(() => setLoading(false), 800);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="flex flex-col items-center">
-          <div className="w-8 h-8 border-4 border-[#5B4FE8] border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm text-[#8B87A8] mt-4">Loading your financial overview...</p>
-        </div>
-      </div>
-    );
-  }
+export default async function DashboardPage() {
+  const data = await getDashboardData();
 
   return (
     <div className="space-y-4">
       {/* Stats Grid - 3 columns */}
-      <StatsGrid />
+      <StatsGrid stats={data.stats} />
 
       {/* 2x2 Grid for Charts - matches original FinCoach layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Income vs Expenses Chart */}
-        <SpendingChart />
-        
+        <SpendingChart chart={data.chart} stats={data.stats} />
+
         {/* Spending Breakdown + Savings Rate */}
-        <SpendingBreakdown />
+        <SpendingBreakdown categories={data.categories} stats={data.stats} />
       </div>
 
       {/* 2x2 Grid - Second row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Transactions */}
-        <RecentTransactions />
-        
+        <RecentTransactions transactions={data.recentTransactions} />
+
         {/* Quick AI Insights */}
         <QuickAIInsights />
       </div>

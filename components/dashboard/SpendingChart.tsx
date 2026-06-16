@@ -1,12 +1,22 @@
 // SpendingChart.tsx
 "use client";
 
-export default function SpendingChart() {
-  const months = ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
-  const incomes = [52, 60, 55, 70, 62, 90];
-  const expenses = [34, 42, 38, 48, 44, 58];
+import { ChartData, DashboardStats } from "@/actions/dashboard";
 
-  const maxHeight = 90;
+interface Props {
+  chart: ChartData[];
+  stats: DashboardStats;
+}
+
+function formatK(value: number): string {
+  if (value >= 1000) return `${Math.round(value / 1000 * 10) / 10}K`;
+  return value.toLocaleString();
+}
+
+export default function SpendingChart({ chart, stats }: Props) {
+  const incomes  = chart.map(c => c.income);
+  const expenses = chart.map(c => c.expense);
+  const maxValue = Math.max(...incomes, ...expenses, 1);
 
   return (
     <div className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]">
@@ -27,19 +37,19 @@ export default function SpendingChart() {
 
       {/* Chart Bars */}
       <div className="flex items-end gap-2 h-[110px] pb-2">
-        {months.map((month, idx) => (
-          <div key={month} className="flex-1 flex flex-col items-center gap-1">
+        {chart.map((item, idx) => (
+          <div key={item.month} className="flex-1 flex flex-col items-center gap-1">
             <div className="flex items-end gap-1 h-[90px] w-full justify-center">
               <div
                 className="w-[40%] rounded-t-sm bg-gradient-to-b from-[#5B4FE8] to-[#9B93F5]"
-                style={{ height: `${(incomes[idx] / maxHeight) * 90}px` }}
+                style={{ height: `${(incomes[idx] / maxValue) * 90}px` }}
               />
               <div
                 className="w-[40%] rounded-t-sm bg-gradient-to-b from-[#EF4444] to-[#FCA5A5]"
-                style={{ height: `${(expenses[idx] / maxHeight) * 90}px` }}
+                style={{ height: `${(expenses[idx] / maxValue) * 90}px` }}
               />
             </div>
-            <div className="text-[9px] text-[#C4C1DC] font-mono">{month}</div>
+            <div className="text-[9px] text-[#C4C1DC] font-mono">{item.month}</div>
           </div>
         ))}
       </div>
@@ -48,15 +58,15 @@ export default function SpendingChart() {
       <div className="flex gap-2 mt-3 pt-3 border-t border-[#EAE8FB]">
         <div className="flex-1 text-center bg-[#EEF0FD] rounded-lg py-2">
           <div className="text-[10px] font-semibold text-[#3C3489]">Income</div>
-          <div className="text-[14px] font-bold text-[#3C3489] font-mono">185K</div>
+          <div className="text-[14px] font-bold text-[#3C3489] font-mono">{formatK(stats.currentIncome)}</div>
         </div>
         <div className="flex-1 text-center bg-[#FEE2E2] rounded-lg py-2">
           <div className="text-[10px] font-semibold text-[#7F1D1D]">Expenses</div>
-          <div className="text-[14px] font-bold text-[#7F1D1D] font-mono">92.4K</div>
+          <div className="text-[14px] font-bold text-[#7F1D1D] font-mono">{formatK(stats.currentExpense)}</div>
         </div>
         <div className="flex-1 text-center bg-[#DCFCE7] rounded-lg py-2">
           <div className="text-[10px] font-semibold text-[#14532D]">Saved</div>
-          <div className="text-[14px] font-bold text-[#14532D] font-mono">92.6K</div>
+          <div className="text-[14px] font-bold text-[#14532D] font-mono">{formatK(stats.netSavings)}</div>
         </div>
       </div>
     </div>

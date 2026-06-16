@@ -1,34 +1,40 @@
 // StatsGrid.tsx
 "use client";
 
-export default function StatsGrid() {
-  const stats = [
+import { DashboardStats } from "@/actions/dashboard";
+
+interface Props {
+  stats: DashboardStats;
+}
+
+export default function StatsGrid({ stats }: Props) {
+  const items = [
     {
-      label: "💰 Total Income",
-      value: "LKR 185,000",
-      change: "+8.3% vs last month",
-      changeType: "up",
-      badge: "All Roles",
+      label:      "💰 Total Income",
+      value:      `LKR ${stats.currentIncome.toLocaleString()}`,
+      change:     `${stats.incomeChange >= 0 ? "+" : ""}${stats.incomeChange}% vs last month`,
+      changeType: stats.incomeChange >= 0 ? "up" : "down",
+      badge:      "All Roles",
     },
     {
-      label: "💳 Total Expenses",
-      value: "LKR 92,400",
-      change: "+12.1% vs last month",
-      changeType: "down",
-      badge: null,
+      label:      "💳 Total Expenses",
+      value:      `LKR ${stats.currentExpense.toLocaleString()}`,
+      change:     `${stats.expenseChange >= 0 ? "+" : ""}${stats.expenseChange}% vs last month`,
+      changeType: stats.expenseChange <= 0 ? "up" : "down",
+      badge:      null,
     },
     {
-      label: "🏦 Net Savings",
-      value: "LKR 92,600",
-      change: "Savings rate: 50.1%",
-      changeType: "up",
-      badge: null,
+      label:      "🏦 Net Savings",
+      value:      `LKR ${stats.netSavings.toLocaleString()}`,
+      change:     `Savings rate: ${stats.savingsRate}%`,
+      changeType: stats.netSavings >= 0 ? "up" : "down",
+      badge:      null,
     },
   ];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {stats.map((stat, idx) => (
+      {items.map((stat, idx) => (
         <div
           key={idx}
           className="bg-white border border-[#EAE8FB] rounded-xl p-4 shadow-[0_1px_3px_rgba(91,79,232,0.07)]"
