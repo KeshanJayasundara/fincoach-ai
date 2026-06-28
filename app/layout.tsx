@@ -4,6 +4,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "FinCoach AI — Your Money, Finally Under Control",
   description: "AI-powered finance coach for doctors, freelancers, students & more.",
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'FinCoach AI',
+  },
 };
 
 export default function RootLayout({
@@ -14,10 +20,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Exact viewport fix for mobile */}
+        {/* Viewport */}
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-        {/* Exact fonts from your original HTML */}
+        {/* PWA */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0D0B1A" />
+
+        {/* iPhone PWA Support */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="FinCoach AI" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+        {/* Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
