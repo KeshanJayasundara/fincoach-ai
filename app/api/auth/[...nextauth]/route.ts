@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-const { handlers, auth, signIn, signOut } = NextAuth({
+const { handlers, auth: nextAuth, signIn: nextSignIn, signOut: nextSignOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     Google({
@@ -62,4 +62,8 @@ const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 export const { GET, POST } = handlers;
-export { auth, signIn, signOut };
+
+// අනිත් සර්වර් ඇක්ෂන්ස් (Actions) වලට බාධාවක් නොවී වැඩ කිරීමට මෙසේ export කරන්න
+export const auth = nextAuth;
+export const signIn = nextSignIn;
+export const signOut = nextSignOut;
