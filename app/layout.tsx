@@ -24,14 +24,14 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
         {/* PWA */}
-        <link rel="manifest" href="/manifest.json?v=2" />
+        <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#0D0B1A" />
 
         {/* iPhone PWA Support */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="FinCoach" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png?v=2" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
 
         {/* Favicon */}
         <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
