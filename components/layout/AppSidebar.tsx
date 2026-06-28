@@ -50,8 +50,9 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
       )}
 
       <aside
-        className={`w-55 bg-[#13102E] h-screen fixed left-0 top-0 flex flex-col z-50 transition-transform duration-300 ease-in-out
+        className={`w-55 bg-[#13102E] fixed left-0 top-0 flex flex-col z-50 transition-transform duration-300 ease-in-out
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        style={{ height: '100dvh' }}
       >
         {/* Logo + mobile close button */}
         <div className="px-4 py-5 pb-5 border-b border-white/10 flex items-center justify-between">
@@ -111,7 +112,10 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
         </div>
 
         {/* Bottom Section */}
-        <div className="mt-auto pt-2 pb-4 px-2 border-t border-white/10">
+        <div
+          className="mt-auto pt-2 px-2 border-t border-white/10"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="bg-[#5B4FE8]/10 border border-[#5B4FE8]/30 rounded-2xl p-4 mx-2">
             <div className="text-xs font-semibold text-white/80">Free plan</div>
             <div className="text-[11px] text-white/40 mt-1">7 / 10 AI queries used</div>
