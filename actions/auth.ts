@@ -33,12 +33,16 @@ export async function registerUser(data: { name: string; email: string; password
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry = new Date(Date.now() + 10 * 60 * 1000);
 
+    const emailSent = await sendResetOTP(validated.email, otp);
+    if (!emailSent) {
+      await prisma.user.delete({ where: { id: user.id } });
+      return { success: false, error: "Unable to send verification email. Please try again." };
+    }
+
     await prisma.user.update({
       where: { id: user.id },
       data: { resetToken: otp, resetTokenExpiry: expiry },
     });
-
-    await sendResetOTP(validated.email, otp);
 
     return { success: true, message: "OTP sent" };
   } catch (error: any) {
