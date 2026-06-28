@@ -25,7 +25,6 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
 
   const handleNavigation = (href: string) => {
     if (href === "/dashboard/transactions") {
-      // Always hard-reset to current month so the page initialises correctly
       const currentMonth = new Date().toISOString().slice(0, 7);
       sessionStorage.setItem("txFilterMonth", currentMonth);
     }
@@ -117,7 +116,7 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
             <div className="text-xs font-semibold text-white/80">Free plan</div>
             <div className="text-[11px] text-white/40 mt-1">7 / 10 AI queries used</div>
             <div className="h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
-              <div className="h-full w-[70%] bg-linear-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full" />
+              <div className="h-full w-[70%] bg-gradient-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full" />
             </div>
             <div className="text-[10px] text-white/40 mt-1.5">3 queries left this month</div>
           </div>
