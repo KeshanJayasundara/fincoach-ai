@@ -142,6 +142,7 @@ model ReportLog {
   userId      String
   month       String   // YYYY-MM
   type        String   // "combined"
+  sentVia     String   @default("manual") // "manual" | "auto"
   sentAt      DateTime @default(now())
   emailSentTo String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -1,19 +1,54 @@
-// page.tsx
 "use client";
 
-import { useState } from "react";
-
-const reportHistory = [
-  { month: "April 2026 — Combined", sent: "Manual · Today · 3:12 PM", status: "manual" },
-  { month: "March 2026 — Combined", sent: "Auto · Mar 31", status: "auto" },
-  { month: "February 2026 — Combined", sent: "Auto · Feb 28", status: "auto" },
-  { month: "January 2026 — Combined", sent: "Auto · Jan 31", status: "auto" },
-];
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { generateMonthlyReport, getReportLogs } from "@/actions/reports";
+import { BarChart3, Send, CheckCircle2, Mail, Loader2, History } from "lucide-react";
 
 export default function ReportsPage() {
-  const [selectedMonth, setSelectedMonth] = useState("Apr 2026");
+  const { data: session } = useSession();
+  const [selectedMonth, setSelectedMonth] = useState("2026-04");
+  const [sending, setSending] = useState(false);
+  const [reportLogs, setReportLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const months = ["Apr 2026", "Mar 2026", "Feb 2026", "Jan 2026", "Dec 2025"];
+  // value = what's sent to the server action, label = what's shown to the user
+  const months = [
+    { value: "2026-04", label: "Apr 2026" },
+    { value: "2026-03", label: "Mar 2026" },
+    { value: "2026-02", label: "Feb 2026" },
+    { value: "2026-01", label: "Jan 2026" },
+    { value: "2025-12", label: "Dec 2025" },
+  ];
+
+  useEffect(() => {
+    loadReportLogs();
+  }, []);
+
+  const loadReportLogs = async () => {
+    setLoading(true);
+    try {
+      const logs = await getReportLogs();
+      setReportLogs(logs);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const handleSendReport = async () => {
+    setSending(true);
+    try {
+      const result = await generateMonthlyReport(selectedMonth);
+      if (result.success) {
+        alert("✅ Monthly report sent successfully!");
+        loadReportLogs();
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to send report");
+    }
+    setSending(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -27,31 +62,31 @@ export default function ReportsPage() {
               On-demand
             </span>
           </div>
-          
+
           <div className="p-4">
             <div className="text-[10.5px] font-bold text-[#8B87A8] uppercase tracking-[0.08em] mb-2">Select month</div>
-            
+
             {/* Month Chips */}
             <div className="flex gap-1.5 flex-wrap mb-4">
               {months.map((month) => (
                 <button
-                  key={month}
-                  onClick={() => setSelectedMonth(month)}
+                  key={month.value}
+                  onClick={() => setSelectedMonth(month.value)}
                   className={`px-3 py-1.5 rounded-full text-[12px] font-medium transition-all border
-                    ${selectedMonth === month 
-                      ? "bg-[#5B4FE8] text-white border-[#5B4FE8]" 
+                    ${selectedMonth === month.value
+                      ? "bg-[#5B4FE8] text-white border-[#5B4FE8]"
                       : "bg-white border-[#D1CCFF] text-[#4A4568] hover:border-[#5B4FE8] hover:bg-[#EEF0FD]"
                     }`}
                 >
-                  {month}
+                  {month.label}
                 </button>
               ))}
             </div>
 
             {/* Combined Report Card */}
             <div className="bg-[#EEF0FD] border border-[#C7C3F8] rounded-xl p-3.5 flex items-center gap-3 mb-3.5">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-lg flex-shrink-0">
-                📊
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-5 h-5 text-white" strokeWidth={2.25} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-bold text-[#3C3489]">Combined Report</div>
@@ -61,19 +96,39 @@ export default function ReportsPage() {
             </div>
 
             {/* Info Box */}
-            <div className="bg-[#DCFCE7] border border-[#86EFAC] rounded-lg px-3 py-2 mb-3.5 text-[12px] text-[#14532D]">
-              ✅ <strong>One report per month</strong> — Auto-sent on the last day. Request anytime for any past month.
+            <div className="bg-[#DCFCE7] border border-[#86EFAC] rounded-lg px-3 py-2 mb-3.5 flex items-start gap-2 text-[12px] text-[#14532D]">
+              <CheckCircle2 className="w-4 h-4 mt-[1px] flex-shrink-0 text-[#16A34A]" strokeWidth={2.25} />
+              <span>
+                <strong>One report per month</strong> — Auto-sent on the last day. Request anytime for any past month.
+              </span>
             </div>
 
             {/* Email Info */}
-            <div className="bg-[#F8F7FF] rounded-lg px-3 py-2.5 mb-3.5">
-              <div className="text-[12px] text-[#8B87A8]">Sending to: <strong className="text-[#1A1635]">kasun@gmail.com</strong></div>
-              <div className="text-[11px] text-[#8B87A8] mt-0.5">Arrives in inbox within ~30 seconds</div>
+            <div className="bg-[#F8F7FF] rounded-lg px-3 py-2.5 mb-3.5 flex items-start gap-2.5">
+              <Mail className="w-4 h-4 mt-[2px] flex-shrink-0 text-[#8B87A8]" strokeWidth={2} />
+              <div>
+                <div className="text-[12px] text-[#8B87A8]">Sending to: <strong className="text-[#1A1635]">{session?.user?.email || "kasun@gmail.com"}</strong></div>
+                <div className="text-[11px] text-[#8B87A8] mt-0.5">Arrives in inbox within ~30 seconds</div>
+              </div>
             </div>
 
             {/* Send Button */}
-            <button className="w-full bg-[#5B4FE8] hover:bg-[#7B72EC] text-white py-2.5 rounded-lg text-[14px] font-semibold transition-all">
-              📧 Send Combined Report
+            <button
+              onClick={handleSendReport}
+              disabled={sending}
+              className="w-full bg-[#5B4FE8] hover:bg-[#7B72EC] text-white py-2.5 rounded-lg text-[14px] font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2.5} />
+                  Sending Report...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" strokeWidth={2.5} />
+                  Send Combined Report
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -81,28 +136,58 @@ export default function ReportsPage() {
         {/* Report History Card */}
         <div className="bg-white border border-[#EAE8FB] rounded-xl shadow-[0_1px_3px_rgba(91,79,232,0.07)] overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-[#EAE8FB]">
-            <div className="text-[14px] font-bold text-[#1A1635] tracking-[-0.1px]">Report history</div>
+            <div className="flex items-center gap-2">
+              <History className="w-4 h-4 text-[#8B87A8]" strokeWidth={2.25} />
+              <div className="text-[14px] font-bold text-[#1A1635] tracking-[-0.1px]">Report history</div>
+            </div>
           </div>
-          
+
           <div className="divide-y divide-[#EAE8FB]">
-            {reportHistory.map((report, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-4">
-                <div className="w-8 h-8 rounded-lg bg-[#EEF0FD] flex items-center justify-center text-sm flex-shrink-0">
-                  📊
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-[#1A1635]">{report.month}</div>
-                  <div className="text-[11px] text-[#8B87A8]">{report.sent}</div>
-                </div>
-                <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${
-                  report.status === "manual" 
-                    ? "bg-[#EEF0FD] text-[#3C3489]" 
-                    : "bg-[#DCFCE7] text-[#14532D]"
-                }`}>
-                  {report.status === "manual" ? "Manual" : "Auto"}
-                </span>
+            {loading ? (
+              <div className="p-4 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="w-8 h-8 rounded-lg bg-[#EEF0FD] flex-shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-3 bg-[#EEF0FD] rounded w-2/5" />
+                      <div className="h-2.5 bg-[#F1F0FA] rounded w-3/5" />
+                    </div>
+                    <div className="h-4 w-14 bg-[#EEF0FD] rounded-full flex-shrink-0" />
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : reportLogs.length === 0 ? (
+              <div className="p-8 text-center text-[#8B87A8]">
+                <BarChart3 className="w-8 h-8 mx-auto mb-2 text-[#D1CCFF]" strokeWidth={1.5} />
+                No reports sent yet
+              </div>
+            ) : (
+              reportLogs.map((report) => (
+                <div key={report.id} className="flex items-center gap-3 p-4">
+                  <div className="w-8 h-8 rounded-lg bg-[#EEF0FD] flex items-center justify-center flex-shrink-0">
+                    <BarChart3 className="w-4 h-4 text-[#5B4FE8]" strokeWidth={2.25} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold text-[#1A1635]">
+                      {report.month} — Combined
+                    </div>
+                    <div className="text-[11px] text-[#8B87A8]">
+                      Sent on {new Date(report.sentAt).toLocaleDateString()} ·{" "}
+                      {new Date(report.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${
+                      report.sentVia === "manual"
+                        ? "bg-[#EEF0FD] text-[#3C3489]"
+                        : "bg-[#DCFCE7] text-[#14532D]"
+                    }`}
+                  >
+                    {report.sentVia === "manual" ? "Manual" : "Auto"}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
