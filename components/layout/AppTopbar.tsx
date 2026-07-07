@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -70,9 +71,8 @@ function AddGoalModal({
       <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onClose} />
 
       <div className="relative w-full sm:max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[92dvh] flex flex-col">
-
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] shrink-0">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] flex-shrink-0">
           <div>
             <h2 className="text-[15px] font-bold text-[#1A1635]">Create New Goal</h2>
             <p className="text-[11px] text-[#8B87A8] mt-0.5">Set a savings target to work towards</p>
@@ -86,7 +86,7 @@ function AddGoalModal({
         </div>
 
         {/* Tab strip */}
-        <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] shrink-0">
+        <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] flex-shrink-0">
           <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-semibold bg-white text-[#5B4FE8] shadow-sm border border-[#EAE8FB]">
             <Target size={12} />
             Savings Goal
@@ -95,7 +95,6 @@ function AddGoalModal({
 
         {/* Form */}
         <div className="overflow-y-auto flex-1 p-5 space-y-4">
-
           {/* Goal Name */}
           <div>
             <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
@@ -194,6 +193,7 @@ function AddGoalModal({
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const router   = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const [notifications]                         = useState(3);
   const [showAddModal, setShowAddModal]         = useState(false);
@@ -202,35 +202,47 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
   const isChat = pathname.includes("/chat");
 
-  // Listen for query count updates fired from AIChatPage
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ queriesLeft: number }>).detail;
-      setQueriesLeft(detail.queriesLeft);
-    };
-    window.addEventListener("fincoach:queries-update", handler);
-    return () => window.removeEventListener("fincoach:queries-update", handler);
-  }, []);
+  // Dynamic Greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    let greeting = "Good morning";
+
+    if (hour >= 12 && hour < 17) greeting = "Good afternoon";
+    else if (hour >= 17) greeting = "Good evening";
+
+    const firstName = session?.user?.name?.split(" ")[0] || "there";
+    return `${greeting}, ${firstName} 👋`;
+  };
+
+  // Get first two letters for avatar
+  const getAvatarLetters = () => {
+    const name = session?.user?.name || "User";
+    const words = name.trim().split(" ");
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   const getPageConfig = () => {
     if (pathname === "/dashboard")
-      return { title: "Dashboard", showAddButton: false, addAction: null, greeting: "Good morning, Dr. Kasun 👋" };
+      return { title: "Dashboard", showAddButton: false, addAction: null };
     if (pathname.includes("/transactions"))
-      return { title: "Transactions", showAddButton: true, addAction: () => setShowAddModal(true), greeting: null };
+      return { title: "Transactions", showAddButton: true, addAction: () => setShowAddModal(true) };
     if (pathname.includes("/chat"))
-      return { title: "AI Coach", showAddButton: false, addAction: null, greeting: null };
+      return { title: "AI Coach", showAddButton: false, addAction: null };
     if (pathname.includes("/goals"))
-      return { title: "Savings Goals", showAddButton: true, addAction: () => setShowAddGoalModal(true), greeting: null };
+      return { title: "Savings Goals", showAddButton: true, addAction: () => setShowAddGoalModal(true) };
     if (pathname.includes("/portfolio"))
-      return { title: "Portfolio", showAddButton: true, addAction: () => router.push("/dashboard/portfolio/add"), greeting: null };
+      return { title: "Portfolio", showAddButton: true, addAction: () => router.push("/dashboard/portfolio/add") };
     if (pathname.includes("/reports"))
-      return { title: "Financial Reports", showAddButton: false, addAction: null, greeting: null };
+      return { title: "Financial Reports", showAddButton: false, addAction: null };
     if (pathname.includes("/settings"))
-      return { title: "Settings", showAddButton: false, addAction: null, greeting: null };
-    return { title: "Dashboard", showAddButton: false, addAction: null, greeting: "Good morning, Dr. Kasun 👋" };
+      return { title: "Settings", showAddButton: false, addAction: null };
+    return { title: "Dashboard", showAddButton: false, addAction: null };
   };
 
-  const { title, showAddButton, addAction, greeting } = getPageConfig();
+  const { title, showAddButton, addAction } = getPageConfig();
   const addButtonLabel = pathname.includes("/goals") ? "Add Goal" : "Add Transaction";
 
   return (
@@ -239,8 +251,6 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
       {isChat ? (
         <header className="h-14 bg-white border-b border-[#EAE8FB] sticky top-0 z-30 shrink-0">
           <div className="h-full px-3 md:px-4 flex items-center justify-between">
-
-            {/* Left — hamburger + identity */}
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={onMenuClick}
@@ -254,13 +264,10 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               </div>
               <div>
                 <div className="font-semibold text-[#1A1635] text-sm">FinCoach AI</div>
-                <div className="text-[10px] text-[#8B87A8] font-medium">
-                  Your real data
-                </div>
+                <div className="text-[10px] text-[#8B87A8] font-medium">Your real data</div>
               </div>
             </div>
 
-            {/* queries left count part */}
             <div className="flex items-center">
               {queriesLeft !== null ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-[#F8F7FF] px-3 py-1.5 rounded-full border border-[#EAE8FB]">
@@ -272,13 +279,11 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
                 <div className="h-7 w-28 rounded-full bg-[#EAE8FB] animate-pulse" />
               )}
             </div>
-
           </div>
         </header>
       ) : (
         /* ── Standard header ── */
         <header className="h-14 md:h-14.5 bg-white border-b border-[#EAE8FB] flex items-center justify-between px-3 md:px-5 sticky top-0 z-30 shrink-0">
-
           {/* Left */}
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <button
@@ -290,9 +295,9 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
             <div className="flex flex-col min-w-0">
               <h1 className="text-[14px] md:text-[15px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{title}</h1>
-              {greeting && (
-                <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:block truncate">{greeting}</p>
-              )}
+              <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:block truncate">
+                {getGreeting()}
+              </p>
             </div>
 
             {pathname === "/dashboard" && (
@@ -324,11 +329,12 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               )}
             </button>
 
+            {/* Profile Logo - First Two Letters */}
             <div
               onClick={() => router.push("/dashboard/settings")}
               className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
             >
-              K
+              {getAvatarLetters()}
             </div>
           </div>
         </header>
