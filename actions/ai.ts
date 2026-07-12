@@ -9,6 +9,13 @@ export type ChatMessage = {
   content: string;
 };
 
+export type StoredChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+};
+
 export type AIResponse = {
   success: boolean;
   reply: string;
@@ -17,9 +24,92 @@ export type AIResponse = {
 };
 
 const QUERY_LIMITS: Record<string, number> = {
-  free:100,
+  free: 10,
   pro: 999,
 };
+
+function getCurrentMonthStart(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+async function getUserQueryStatus(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { plan: true, aiQueriesUsed: true, aiQueryMonth: true },
+  });
+
+  if (!user) throw new Error("User not found");
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const isNewMonth   = user.aiQueryMonth !== currentMonth;
+  const queriesUsed  = isNewMonth ? 0 : user.aiQueriesUsed;
+  const limit        = QUERY_LIMITS[user.plan] ?? 10;
+
+  return { queriesUsed, limit, currentMonth, isNewMonth };
+}
+
+/**
+ * Deletes chat messages from before the current calendar month.
+ * Called opportunistically whenever chat history is touched, so no
+ * separate cron job is required.
+ */
+async function cleanupOldChatMessages(userId: string) {
+  const monthStart = getCurrentMonthStart();
+  await prisma.chatMessage.deleteMany({
+    where: { userId, createdAt: { lt: monthStart } },
+  });
+}
+
+/**
+ * Lightweight call the client can use (e.g. on page load) to display
+ * the user's current AI query usage without sending a chat message.
+ */
+export async function getAIUsage(): Promise<{ queriesUsed: number; queriesLimit: number }> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const { queriesUsed, limit } = await getUserQueryStatus(session.user.id);
+  return { queriesUsed, queriesLimit: limit };
+}
+
+/**
+ * Returns this month's chat history for the current user (oldest first),
+ * after clearing out anything older than the current month.
+ */
+export async function getChatHistory(): Promise<StoredChatMessage[]> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const userId = session.user.id;
+
+  await cleanupOldChatMessages(userId);
+
+  const messages = await prisma.chatMessage.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, role: true, content: true, createdAt: true },
+  });
+
+  return messages.map(m => ({
+    id:        m.id,
+    role:      m.role as "user" | "assistant",
+    content:   m.content,
+    createdAt: m.createdAt.toISOString(),
+  }));
+}
+
+/**
+ * Clears all saved chat history for the current user immediately
+ * (used by a "Clear chat" button, if you add one).
+ */
+export async function clearChatHistory(): Promise<{ success: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  await prisma.chatMessage.deleteMany({ where: { userId: session.user.id } });
+  return { success: true };
+}
 
 async function buildFinancialContext(userId: string): Promise<string> {
   const now = new Date();
@@ -177,20 +267,8 @@ export async function sendAIMessage(messages: ChatMessage[]): Promise<AIResponse
 
   const userId = session.user.id;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { plan: true, aiQueriesUsed: true, aiQueryMonth: true },
-  });
+  const { queriesUsed, limit, currentMonth, isNewMonth } = await getUserQueryStatus(userId);
 
-  if (!user) throw new Error("User not found");
-
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const isNewMonth   = user.aiQueryMonth !== currentMonth;
-  const queriesUsed  = isNewMonth ? 0 : user.aiQueriesUsed;
-  const limit        = QUERY_LIMITS[user.plan] ?? 100;
-
-
-  //if (false && queriesUsed >= limit) {
   if (queriesUsed >= limit) {
     return {
       success:      false,
@@ -198,6 +276,19 @@ export async function sendAIMessage(messages: ChatMessage[]): Promise<AIResponse
       queriesUsed,
       queriesLimit: limit,
     };
+  }
+
+  // The latest message in the array is the one the user just sent —
+  // persist it now so it survives even if the API call below fails.
+  const latestUserMessage = messages[messages.length - 1];
+  if (latestUserMessage?.role === "user") {
+    await prisma.chatMessage.create({
+      data: {
+        userId,
+        role:    "user",
+        content: latestUserMessage.content,
+      },
+    });
   }
 
   const financialContext = await buildFinancialContext(userId);
@@ -215,18 +306,18 @@ ${financialContext}
 Detect the linguistic style and typography of the user's message. You must strictly match the output combinations required below:
 
 ── 1. USER ASKS IN PURE ENGLISH ──
-• Condition: User texts completely in standard English characters and words.
-• Output Rule: Reply 100% IN FULL ENGLISH. Do not use any Sinhala terms, mix phrases, or apply Singlish modifiers. Keep it completely clean, professional, and grammatically flawless.
+- Condition: User texts completely in standard English characters and words.
+- Output Rule: Reply 100% IN FULL ENGLISH. Do not use any Sinhala terms, mix phrases, or apply Singlish modifiers. Keep it completely clean, professional, and grammatically flawless.
 
 ── 2. USER ASKS IN SINHALA SCRIPT (සිංහල අකුරු) ──
-• Condition: User queries using native Sinhala characters (e.g., "මගේ goals ටික පෙන්වන්න").
-• Output Rule: Reply in a MIX OF SINHALA SCRIPT AND ENGLISH. Use conversational Sinhala script sentences to address the user, but seamlessly integrate key financial numbers, transaction categories, targets, metrics, and dates using Latin characters/English words.
-• Example: "ඔබේ මෙම මාසයේ **Savings Rate** එක **94%** ක් වෙනවා! **Home Insurance** එක සඳහා **LKR 10,000** ක් වැය වී ඇති අතර එය ඔබේ මුළු වියදම් වලින් **67%** කි."
+- Condition: User queries using native Sinhala characters (e.g., "මගේ goals ටික පෙන්වන්න").
+- Output Rule: Reply in a MIX OF SINHALA SCRIPT AND ENGLISH. Use conversational Sinhala script sentences to address the user, but seamlessly integrate key financial numbers, transaction categories, targets, metrics, and dates using Latin characters/English words.
+- Example: "ඔබේ මෙම මාසයේ **Savings Rate** එක **94%** ක් වෙනවා! **Home Insurance** එක සඳහා **LKR 10,000** ක් වැය වී ඇති අතර එය ඔබේ මුළු වියදම් වලින් **67%** කි."
 
 ── 3. USER ASKS IN SINGLISH (ROMANIZED PHONETIC SINHALA) ──
-• Condition: User inputs words like machan, mage, me mase, kohomada, danna, thiyenawa, etc.
-• Output Rule: Reply in a PURE ENGLISH + SINHALA + SINGLISH MIX (Real Local SMS Chat Style). Blend English industry metrics with phonetic Singlish sentence foundations smoothly.
-• STAGE-GATE GRAMMATICAL CORRECTIONS FOR SINGLISH GENERATION:
+- Condition: User inputs words like machan, mage, me mase, kohomada, danna, thiyenawa, etc.
+- Output Rule: Reply in a PURE ENGLISH + SINHALA + SINGLISH MIX (Real Local SMS Chat Style). Blend English industry metrics with phonetic Singlish sentence foundations smoothly.
+- STAGE-GATE GRAMMATICAL CORRECTIONS FOR SINGLISH GENERATION:
   - CRITICAL PRONOUN PROTECTION: When referencing user metrics, ALWAYS use "oyage" (your) or "me mase". NEVER mimic user query pronouns like "mage goals" or "mage progress" in an assistant response.
   - LITERAL PHRASE PROHIBITION: Never output unnatural direct text transformations like "goals walata baluwa" ❌ or "goals gana baluwa" ❌. Instead, use natural colloquial openings:
     * "Machan, oyage goals tika mama check kala! 🎯"
@@ -294,13 +385,22 @@ Example Layout Standard:
       ? data.content[0].text
       : "Sorry, I couldn't process that.";
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        aiQueriesUsed: isNewMonth ? 1 : { increment: 1 },
-        aiQueryMonth:  currentMonth,
-      },
-    });
+    await Promise.all([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          aiQueriesUsed: isNewMonth ? 1 : { increment: 1 },
+          aiQueryMonth:  currentMonth,
+        },
+      }),
+      prisma.chatMessage.create({
+        data: {
+          userId,
+          role:    "assistant",
+          content: reply,
+        },
+      }),
+    ]);
 
     return {
       success:      true,

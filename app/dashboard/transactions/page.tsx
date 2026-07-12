@@ -1,8 +1,19 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Search, ChevronDown, X, Check, Trash2 } from "lucide-react";
+import {
+  Search,
+  SearchX,
+  ChevronDown,
+  X,
+  Check,
+  Trash2,
+  Circle,
+  FolderOpen,
+  Calendar,
+} from "lucide-react";
 import { getTransactions, deleteTransaction } from "@/actions/transactions";
+import { getCategoryIcon, getCategoryBadge } from "@/lib/categoryIcons";
 import {
   TransactionType,
   TransactionCategory,
@@ -63,156 +74,6 @@ function formatTxDate(raw: any): string {
     month: "short", day: "numeric", year: "numeric",
   });
 }
-
-const getCategoryIcon = (category: string): { icon: string; bg: string } => {
-  const icons: Record<string, { icon: string; bg: string }> = {
-    "Salary / Income":        { icon: "💼", bg: "#DCFCE7" },
-    "Freelance Income":       { icon: "💻", bg: "#DBEAFE" },
-    "Business Income":        { icon: "🏢", bg: "#D1FAE5" },
-    "Investment Returns":     { icon: "📈", bg: "#DCFCE7" },
-    "Rental Income":          { icon: "🏠", bg: "#FEF9C3" },
-    "Dividends":              { icon: "💹", bg: "#DCFCE7" },
-    "Bonus / Incentive":      { icon: "🎁", bg: "#FEE2E2" },
-    "Side Hustle":            { icon: "⚡", bg: "#EDE9FE" },
-    "Government Benefit":     { icon: "🏛️", bg: "#DBEAFE" },
-    "Pension":                { icon: "👴", bg: "#FEF3C7" },
-    "Gift Received":          { icon: "🎀", bg: "#FCE7F3" },
-    "Refund / Cashback":      { icon: "↩️", bg: "#DCFCE7" },
-    "Other Income":           { icon: "💰", bg: "#F3E8FF" },
-    "Food & Grocery":         { icon: "🛒", bg: "#FEF3C7" },
-    "Dining Out":             { icon: "🍕", bg: "#EEF0FD" },
-    "Coffee & Snacks":        { icon: "☕", bg: "#FEF3C7" },
-    "Takeaway / Delivery":    { icon: "🥡", bg: "#FEE2E2" },
-    "Alcohol & Bar":          { icon: "🍺", bg: "#FEF9C3" },
-    "Rent / Mortgage":        { icon: "🏠", bg: "#DBEAFE" },
-    "Utilities":              { icon: "⚡", bg: "#FEE2E2" },
-    "Internet & Phone":       { icon: "📶", bg: "#EDE9FE" },
-    "Home Maintenance":       { icon: "🔧", bg: "#FEF3C7" },
-    "Home Insurance":         { icon: "🛡️", bg: "#DBEAFE" },
-    "Furniture & Appliances": { icon: "🛋️", bg: "#F3E8FF" },
-    "Transport":              { icon: "🚗", bg: "#FEF9C3" },
-    "Fuel & Parking":         { icon: "⛽", bg: "#FEE2E2" },
-    "Public Transport":       { icon: "🚌", bg: "#DBEAFE" },
-    "Taxi / Ride Share":      { icon: "🚕", bg: "#FEF3C7" },
-    "Vehicle Maintenance":    { icon: "🔩", bg: "#F3E8FF" },
-    "Vehicle Insurance":      { icon: "🛡️", bg: "#DBEAFE" },
-    "Health & Medical":       { icon: "🏥", bg: "#E0E7FF" },
-    "Pharmacy":               { icon: "💊", bg: "#FEE2E2" },
-    "Gym & Fitness":          { icon: "💪", bg: "#DCFCE7" },
-    "Mental Health":          { icon: "🧠", bg: "#EDE9FE" },
-    "Dental & Vision":        { icon: "🦷", bg: "#DBEAFE" },
-    "Health Insurance":       { icon: "🛡️", bg: "#D1FAE5" },
-    "Education":              { icon: "📚", bg: "#DBEAFE" },
-    "Tuition & Courses":      { icon: "🎓", bg: "#EDE9FE" },
-    "Books & Supplies":       { icon: "📖", bg: "#FEF3C7" },
-    "Online Learning":        { icon: "💡", bg: "#DBEAFE" },
-    "Entertainment":          { icon: "🎬", bg: "#EDE9FE" },
-    "Streaming Services":     { icon: "📺", bg: "#FEE2E2" },
-    "Gaming":                 { icon: "🎮", bg: "#EEF0FD" },
-    "Hobbies & Leisure":      { icon: "🎨", bg: "#FCE7F3" },
-    "Events & Concerts":      { icon: "🎟️", bg: "#FEF3C7" },
-    "Shopping":               { icon: "🛍️", bg: "#FCE7F3" },
-    "Clothing & Fashion":     { icon: "👗", bg: "#EDE9FE" },
-    "Electronics & Tech":     { icon: "📱", bg: "#DBEAFE" },
-    "Personal Care & Beauty": { icon: "💄", bg: "#FCE7F3" },
-    "Gift Given":             { icon: "🎁", bg: "#FEF3C7" },
-    "Travel":                 { icon: "✈️", bg: "#DBEAFE" },
-    "Flights":                { icon: "🛫", bg: "#EDE9FE" },
-    "Hotels & Stay":          { icon: "🏨", bg: "#FEF9C3" },
-    "Travel Activities":      { icon: "🗺️", bg: "#DCFCE7" },
-    "Business Expense":       { icon: "💼", bg: "#DBEAFE" },
-    "Software & Tools":       { icon: "🖥️", bg: "#EDE9FE" },
-    "Marketing & Ads":        { icon: "📣", bg: "#FEE2E2" },
-    "Office Supplies":        { icon: "🖊️", bg: "#FEF3C7" },
-    "Professional Fees":      { icon: "⚖️", bg: "#DBEAFE" },
-    "Loan Repayment":         { icon: "🏦", bg: "#FEE2E2" },
-    "Credit Card Bill":       { icon: "💳", bg: "#FEE2E2" },
-    "Bank Fees":              { icon: "🏧", bg: "#FEF3C7" },
-    "Taxes":                  { icon: "📋", bg: "#FEE2E2" },
-    "Savings & Deposit":      { icon: "🐷", bg: "#DCFCE7" },
-    "Charity & Donation":     { icon: "❤️", bg: "#FCE7F3" },
-    "Childcare":              { icon: "👶", bg: "#FEF9C3" },
-    "Pet Care":               { icon: "🐾", bg: "#DCFCE7" },
-    "Family Support":         { icon: "👨‍👩‍👧", bg: "#DBEAFE" },
-    "Other":                  { icon: "📄", bg: "#F3E8FF" },
-  };
-  return icons[category] ?? { icon: "📄", bg: "#F3E8FF" };
-};
-
-const getCategoryBadge = (category: string): { label: string; bg: string; color: string } => {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    "Salary / Income":        { label: "Salary",      bg: "#DCFCE7", color: "#14532D" },
-    "Freelance Income":       { label: "Freelance",   bg: "#DBEAFE", color: "#1E3A8A" },
-    "Business Income":        { label: "Business",    bg: "#D1FAE5", color: "#064E3B" },
-    "Investment Returns":     { label: "Investment",  bg: "#DCFCE7", color: "#14532D" },
-    "Rental Income":          { label: "Rental",      bg: "#FEF9C3", color: "#713F12" },
-    "Dividends":              { label: "Dividend",    bg: "#DCFCE7", color: "#14532D" },
-    "Bonus / Incentive":      { label: "Bonus",       bg: "#FEE2E2", color: "#7F1D1D" },
-    "Side Hustle":            { label: "Side Hustle", bg: "#EDE9FE", color: "#4C1D95" },
-    "Government Benefit":     { label: "Govt",        bg: "#DBEAFE", color: "#1E3A8A" },
-    "Pension":                { label: "Pension",     bg: "#FEF3C7", color: "#78350F" },
-    "Gift Received":          { label: "Gift",        bg: "#FCE7F3", color: "#831843" },
-    "Refund / Cashback":      { label: "Refund",      bg: "#DCFCE7", color: "#14532D" },
-    "Other Income":           { label: "Income",      bg: "#DCFCE7", color: "#14532D" },
-    "Food & Grocery":         { label: "Grocery",     bg: "#FEF3C7", color: "#78350F" },
-    "Dining Out":             { label: "Dining",      bg: "#EEF0FD", color: "#3C3489" },
-    "Coffee & Snacks":        { label: "Coffee",      bg: "#FEF3C7", color: "#78350F" },
-    "Takeaway / Delivery":    { label: "Takeaway",    bg: "#FEE2E2", color: "#7F1D1D" },
-    "Alcohol & Bar":          { label: "Alcohol",     bg: "#FEF9C3", color: "#713F12" },
-    "Rent / Mortgage":        { label: "Rent",        bg: "#DBEAFE", color: "#1E3A8A" },
-    "Utilities":              { label: "Utilities",   bg: "#FEE2E2", color: "#7F1D1D" },
-    "Internet & Phone":       { label: "Internet",    bg: "#EDE9FE", color: "#4C1D95" },
-    "Home Maintenance":       { label: "Maintenance", bg: "#FEF3C7", color: "#78350F" },
-    "Home Insurance":         { label: "Insurance",   bg: "#DBEAFE", color: "#1E3A8A" },
-    "Furniture & Appliances": { label: "Furniture",   bg: "#F3E8FF", color: "#4A4568" },
-    "Transport":              { label: "Transport",   bg: "#FEF9C3", color: "#713F12" },
-    "Fuel & Parking":         { label: "Fuel",        bg: "#FEE2E2", color: "#7F1D1D" },
-    "Public Transport":       { label: "Public",      bg: "#DBEAFE", color: "#1E3A8A" },
-    "Taxi / Ride Share":      { label: "Taxi",        bg: "#FEF3C7", color: "#78350F" },
-    "Vehicle Maintenance":    { label: "Vehicle",     bg: "#F3E8FF", color: "#4A4568" },
-    "Vehicle Insurance":      { label: "Insurance",   bg: "#DBEAFE", color: "#1E3A8A" },
-    "Health & Medical":       { label: "Medical",     bg: "#FEE2E2", color: "#7F1D1D" },
-    "Pharmacy":               { label: "Pharmacy",    bg: "#FEE2E2", color: "#7F1D1D" },
-    "Gym & Fitness":          { label: "Gym",         bg: "#DCFCE7", color: "#14532D" },
-    "Mental Health":          { label: "Mental",      bg: "#EDE9FE", color: "#4C1D95" },
-    "Dental & Vision":        { label: "Dental",      bg: "#DBEAFE", color: "#1E3A8A" },
-    "Health Insurance":       { label: "Insurance",   bg: "#D1FAE5", color: "#064E3B" },
-    "Education":              { label: "Education",   bg: "#DBEAFE", color: "#1E3A8A" },
-    "Tuition & Courses":      { label: "Tuition",     bg: "#EDE9FE", color: "#4C1D95" },
-    "Books & Supplies":       { label: "Books",       bg: "#FEF3C7", color: "#78350F" },
-    "Online Learning":        { label: "Online",      bg: "#DBEAFE", color: "#1E3A8A" },
-    "Entertainment":          { label: "Fun",         bg: "#EDE9FE", color: "#4C1D95" },
-    "Streaming Services":     { label: "Streaming",   bg: "#FEE2E2", color: "#7F1D1D" },
-    "Gaming":                 { label: "Gaming",      bg: "#EEF0FD", color: "#3C3489" },
-    "Hobbies & Leisure":      { label: "Hobbies",     bg: "#FCE7F3", color: "#831843" },
-    "Events & Concerts":      { label: "Events",      bg: "#FEF3C7", color: "#78350F" },
-    "Shopping":               { label: "Shopping",    bg: "#FCE7F3", color: "#831843" },
-    "Clothing & Fashion":     { label: "Clothing",    bg: "#EDE9FE", color: "#4C1D95" },
-    "Electronics & Tech":     { label: "Electronics", bg: "#DBEAFE", color: "#1E3A8A" },
-    "Personal Care & Beauty": { label: "Beauty",      bg: "#FCE7F3", color: "#831843" },
-    "Gift Given":             { label: "Gift",        bg: "#FEF3C7", color: "#78350F" },
-    "Travel":                 { label: "Travel",      bg: "#DBEAFE", color: "#1E3A8A" },
-    "Flights":                { label: "Flights",     bg: "#EDE9FE", color: "#4C1D95" },
-    "Hotels & Stay":          { label: "Hotels",      bg: "#FEF9C3", color: "#713F12" },
-    "Travel Activities":      { label: "Activities",  bg: "#DCFCE7", color: "#14532D" },
-    "Business Expense":       { label: "Business",    bg: "#DBEAFE", color: "#1E3A8A" },
-    "Software & Tools":       { label: "Software",    bg: "#EDE9FE", color: "#4C1D95" },
-    "Marketing & Ads":        { label: "Marketing",   bg: "#FEE2E2", color: "#7F1D1D" },
-    "Office Supplies":        { label: "Office",      bg: "#FEF3C7", color: "#78350F" },
-    "Professional Fees":      { label: "Pro Fees",    bg: "#DBEAFE", color: "#1E3A8A" },
-    "Loan Repayment":         { label: "Loan",        bg: "#FEE2E2", color: "#7F1D1D" },
-    "Credit Card Bill":       { label: "Credit",      bg: "#FEE2E2", color: "#7F1D1D" },
-    "Bank Fees":              { label: "Bank Fee",    bg: "#FEF3C7", color: "#78350F" },
-    "Taxes":                  { label: "Tax",         bg: "#FEE2E2", color: "#7F1D1D" },
-    "Savings & Deposit":      { label: "Savings",     bg: "#DCFCE7", color: "#14532D" },
-    "Charity & Donation":     { label: "Charity",     bg: "#FCE7F3", color: "#831843" },
-    "Childcare":              { label: "Childcare",   bg: "#FEF9C3", color: "#713F12" },
-    "Pet Care":               { label: "Pet",         bg: "#DCFCE7", color: "#14532D" },
-    "Family Support":         { label: "Family",      bg: "#DBEAFE", color: "#1E3A8A" },
-    "Other":                  { label: "Other",       bg: "#F3E8FF", color: "#4A4568" },
-  };
-  return map[category] ?? { label: "Other", bg: "#F3E8FF", color: "#4A4568" };
-};
 
 function ConfirmDeleteModal({
   transaction,
@@ -310,7 +171,6 @@ function FilterCategoryDropdown({
   const typeLabel = isIncome ? "Income" : isExpense ? "Expense" : "All";
   const typeBg    = isIncome ? "#DCFCE7" : isExpense ? "#FEE2E2" : "#EEF0FD";
   const typeColor = isIncome ? "#14532D" : isExpense ? "#7F1D1D" : "#3C3489";
-  const typeEmoji = isIncome ? "🟢" : isExpense ? "🔴" : "🔵";
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -335,7 +195,8 @@ function FilterCategoryDropdown({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
               style={{ background: typeBg, color: typeColor }}
             >
-              {typeEmoji} {typeLabel} categories
+              <Circle size={7} fill={typeColor} className="shrink-0" style={{ color: typeColor }} />
+              {typeLabel} categories
             </span>
             <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
           </div>
@@ -371,23 +232,26 @@ function FilterCategoryDropdown({
               </button>
             </li>
             {filtered.length > 0 ? (
-              filtered.map((cat) => (
-                <li key={cat}>
-                  <button
-                    type="button"
-                    onClick={() => { onChange(cat as TransactionCategory); setOpen(false); setSearch(""); }}
-                    className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
-                      value === cat ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold" : "text-[#4A4568] hover:bg-[#F8F7FF]"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="text-base leading-none">{getCategoryIcon(cat).icon}</span>
-                      {cat}
-                    </span>
-                    {value === cat && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
-                  </button>
-                </li>
-              ))
+              filtered.map((cat) => {
+                const CatIcon = getCategoryIcon(cat).icon;
+                return (
+                  <li key={cat}>
+                    <button
+                      type="button"
+                      onClick={() => { onChange(cat as TransactionCategory); setOpen(false); setSearch(""); }}
+                      className={`w-full text-left px-3 py-2 text-[12px] flex items-center justify-between transition-colors ${
+                        value === cat ? "bg-[#EEF0FD] text-[#5B4FE8] font-semibold" : "text-[#4A4568] hover:bg-[#F8F7FF]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <CatIcon size={14} className="text-[#8B87A8]" strokeWidth={2.25} />
+                        {cat}
+                      </span>
+                      {value === cat && <Check size={12} className="text-[#5B4FE8] shrink-0" />}
+                    </button>
+                  </li>
+                );
+              })
             ) : (
               <li className="px-3 py-4 text-center text-[11px] text-[#8B87A8]">
                 No categories match &quot;{search}&quot;
@@ -639,25 +503,34 @@ export default function TransactionsPage() {
             <div className="flex flex-wrap gap-1.5">
               {searchTerm && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  🔍 &quot;{searchTerm}&quot;
+                  <Search size={10} className="shrink-0" />
+                  &quot;{searchTerm}&quot;
                   <button onClick={() => setSearchTerm("")}><X size={10} /></button>
                 </span>
               )}
               {filterType !== "all" && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  {filterType === TransactionType.Expense ? "🔴" : "🟢"} {filterType}
+                  <Circle
+                    size={8}
+                    className="shrink-0"
+                    fill={filterType === TransactionType.Expense ? "#DC2626" : "#16A34A"}
+                    style={{ color: filterType === TransactionType.Expense ? "#DC2626" : "#16A34A" }}
+                  />
+                  {filterType}
                   <button onClick={() => { setFilterType("all"); setFilterCategory("all"); }}><X size={10} /></button>
                 </span>
               )}
               {filterCategory !== "all" && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  📂 {filterCategory}
+                  <FolderOpen size={10} className="shrink-0" />
+                  {filterCategory}
                   <button onClick={() => setFilterCategory("all")}><X size={10} /></button>
                 </span>
               )}
               {isNonCurrentMonth && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#EEF0FD] text-[#5B4FE8] text-[11px] font-semibold rounded-full">
-                  📅 {filterMonthLabel}
+                  <Calendar size={10} className="shrink-0" />
+                  {filterMonthLabel}
                   <button onClick={() => setFilterMonth(currentMonthKey())}><X size={10} /></button>
                 </span>
               )}
@@ -671,7 +544,7 @@ export default function TransactionsPage() {
 
         {!loading && filteredTransactions.length === 0 && (
           <div className="py-14 flex flex-col items-center gap-3 text-center px-4">
-            <div className="text-3xl">🔍</div>
+            <SearchX className="w-8 h-8 text-[#D1CCFF]" strokeWidth={1.75} />
             <div className="text-[13px] font-semibold text-[#1A1635]">No transactions found</div>
             <div className="text-[11px] text-[#8B87A8]">
               {activeFilters > 0
@@ -722,7 +595,7 @@ export default function TransactionsPage() {
                   ))
                 ) : (
                   filteredTransactions.map((tx) => {
-                    const { icon, bg } = getCategoryIcon(tx.category);
+                    const { icon: CatIcon, bg } = getCategoryIcon(tx.category);
                     const badge        = getCategoryBadge(tx.category);
                     return (
                       <tr
@@ -732,10 +605,10 @@ export default function TransactionsPage() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2.5">
                             <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0"
+                              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                               style={{ background: bg }}
                             >
-                              {icon}
+                              <CatIcon size={15} className="text-[#4A4568]" strokeWidth={2.25} />
                             </div>
                             <div>
                               <div className="text-[13px] font-semibold text-[#1A1635]">

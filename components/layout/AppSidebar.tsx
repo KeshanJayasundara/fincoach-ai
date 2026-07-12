@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Home, CreditCard, MessageSquare, Target, PieChart, FileText, Settings, LogOut, X } from "lucide-react";
+import { getAIUsage } from "@/actions/ai";
 
 interface AppSidebarProps {
   isOpen: boolean;
@@ -22,6 +24,42 @@ const navItems = [
 export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const [queriesUsed,  setQueriesUsed]  = useState<number | null>(null);
+  const [queriesLimit, setQueriesLimit] = useState<number | null>(null);
+
+  // Fetch current usage on mount so the widget shows real numbers
+  // instead of hardcoded placeholders.
+  useEffect(() => {
+    getAIUsage()
+      .then(({ queriesUsed, queriesLimit }) => {
+        setQueriesUsed(queriesUsed);
+        setQueriesLimit(queriesLimit);
+      })
+      .catch(() => {
+        // Silently ignore — sidebar still works, usage just won't show.
+      });
+  }, []);
+
+  // Live-update whenever the chat page sends a message.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ queriesLeft: number }>).detail;
+      if (detail && typeof detail.queriesLeft === "number" && queriesLimit !== null) {
+        setQueriesUsed(queriesLimit - detail.queriesLeft);
+      }
+    };
+
+    window.addEventListener("fincoach:queries-update", handler);
+    return () => window.removeEventListener("fincoach:queries-update", handler);
+  }, [queriesLimit]);
+
+  const hasUsage   = queriesUsed !== null && queriesLimit !== null;
+  const queriesLeft = hasUsage ? Math.max(queriesLimit! - queriesUsed!, 0) : null;
+  const usagePct    = hasUsage && queriesLimit! > 0
+    ? Math.min(Math.round((queriesUsed! / queriesLimit!) * 100), 100)
+    : 0;
+  const planLabel   = hasUsage && queriesLimit! >= 999 ? "Pro plan" : "Free plan";
 
   const handleNavigation = (href: string) => {
     if (href === "/dashboard/transactions") {
@@ -117,12 +155,21 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
         >
           <div className="bg-[#5B4FE8]/10 border border-[#5B4FE8]/30 rounded-2xl p-4 mx-2">
-            <div className="text-xs font-semibold text-white/80">Free plan</div>
-            <div className="text-[11px] text-white/40 mt-1">7 / 10 AI queries used</div>
-            <div className="h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
-              <div className="h-full w-[70%] bg-gradient-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full" />
+            <div className="text-xs font-semibold text-white/80">
+              {hasUsage ? planLabel : "Free plan"}
             </div>
-            <div className="text-[10px] text-white/40 mt-1.5">3 queries left this month</div>
+            <div className="text-[11px] text-white/40 mt-1">
+              {hasUsage ? `${queriesUsed} / ${queriesLimit} AI queries used` : "Loading usage…"}
+            </div>
+            <div className="h-1 bg-white/10 rounded-full mt-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#5B4FE8] to-[#9B93F5] rounded-full transition-all duration-300"
+                style={{ width: `${usagePct}%` }}
+              />
+            </div>
+            <div className="text-[10px] text-white/40 mt-1.5">
+              {hasUsage ? `${queriesLeft} queries left this month` : ""}
+            </div>
           </div>
 
           <div

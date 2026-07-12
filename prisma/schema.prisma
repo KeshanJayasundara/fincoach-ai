@@ -42,6 +42,7 @@ model User {
   reportLogs        ReportLog[]
   userRoles         UserRole[]
   typeHistory       UserTypeHistory[]
+  chatMessages      ChatMessage[]
 }
 
 model Account {
@@ -146,4 +147,16 @@ model ReportLog {
   sentAt      DateTime @default(now())
   emailSentTo String?
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── AI CHAT HISTORY ─────────────────────
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // "user" or "assistant"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

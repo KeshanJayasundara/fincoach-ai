@@ -6,8 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
+import { getAIUsage } from "@/actions/ai";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRobot, faBolt } from "@fortawesome/free-solid-svg-icons";
+import { faRobot, faBolt, faHandPaper, faBriefcase } from "@fortawesome/free-solid-svg-icons";
 
 interface AppTopbarProps {
   onMenuClick: () => void;
@@ -199,8 +200,55 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const [showAddModal, setShowAddModal]         = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
   const [queriesLeft, setQueriesLeft]           = useState<number | null>(null);
+  const [primaryRole, setPrimaryRole]           = useState<{ emoji: string | null; roleName: string } | null>(null);
 
   const isChat = pathname.includes("/chat");
+
+  useEffect(() => {
+    fetch("/api/roles")
+      .then((res) => res.json())
+      .then((data) => {
+        const roles = data.roles || [];
+        const primary = roles.find((r: any) => r.isPrimary) || roles[0];
+        if (primary) {
+          setPrimaryRole({ emoji: primary.emoji || null, roleName: primary.roleName });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch current AI query usage so the badge shows a real number
+  // instead of the skeleton loader on first load of the chat page.
+  useEffect(() => {
+    if (!isChat) return;
+
+    let cancelled = false;
+
+    getAIUsage()
+      .then(({ queriesUsed, queriesLimit }) => {
+        if (!cancelled) setQueriesLeft(queriesLimit - queriesUsed);
+      })
+      .catch(() => {
+        // Leave as null -> skeleton stays, chat still works fine.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isChat]);
+
+  // Live-update the badge whenever the chat page sends a message.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ queriesLeft: number }>).detail;
+      if (detail && typeof detail.queriesLeft === "number") {
+        setQueriesLeft(detail.queriesLeft);
+      }
+    };
+
+    window.addEventListener("fincoach:queries-update", handler);
+    return () => window.removeEventListener("fincoach:queries-update", handler);
+  }, []);
 
   // Dynamic Greeting based on time
   const getGreeting = () => {
@@ -211,7 +259,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
     else if (hour >= 17) greeting = "Good evening";
 
     const firstName = session?.user?.name?.split(" ")[0] || "there";
-    return `${greeting}, ${firstName} 👋`;
+    return `${greeting}, ${firstName}`;
   };
 
   // Get first two letters for avatar
@@ -295,14 +343,17 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
 
             <div className="flex flex-col min-w-0">
               <h1 className="text-[14px] md:text-[15px] font-bold text-[#1A1635] tracking-[-0.2px] truncate">{title}</h1>
-              <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:block truncate">
-                {getGreeting()}
+              <p className="text-[10px] md:text-[11px] text-[#8B87A8] -mt-0.5 hidden sm:flex items-center gap-1 truncate">
+                {getGreeting()} <FontAwesomeIcon icon={faHandPaper} className="text-[#9B93F5]" />
               </p>
             </div>
 
-            {pathname === "/dashboard" && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-[#EEF0FD] border border-[#C7C3F8] rounded-full cursor-pointer text-[11px] md:text-[11.5px] font-bold text-[#3C3489] whitespace-nowrap shrink-0 ml-1 md:ml-2">
-                🏥 Healthcare
+            {pathname === "/dashboard" && primaryRole && (
+              <div
+                onClick={() => router.push("/dashboard/settings")}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-[#EEF0FD] border border-[#C7C3F8] rounded-full cursor-pointer text-[11px] md:text-[11.5px] font-bold text-[#3C3489] whitespace-nowrap shrink-0 ml-1 md:ml-2"
+              >
+                {primaryRole.emoji ? primaryRole.emoji : <FontAwesomeIcon icon={faBriefcase} />} {primaryRole.roleName}
                 <span className="text-[10px] opacity-70">▾</span>
               </div>
             )}

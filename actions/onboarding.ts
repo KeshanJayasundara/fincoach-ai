@@ -5,43 +5,88 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+type RoleInput = { name: string; emoji: string };
+
 export async function saveOnboarding(data: {
   primaryProfession: string;
-  secondaryRoles: string[];
+  primaryEmoji: string;
+  secondaryRoles: RoleInput[];
   incomeType: string;
   preferredCurrency: string;
 }) {
   const session = await auth();
 
-  // ✅ DEBUG — paste terminal output here if still failing
-  console.log("=== ONBOARDING DEBUG ===");
-  console.log("Session:", JSON.stringify(session, null, 2));
-  console.log("Data:", JSON.stringify(data, null, 2));
-
   if (!session?.user?.id) {
-    console.log("❌ No session — redirecting to login");
     redirect("/login");
   }
 
-  console.log("✅ Saving for user:", session.user.id);
+  const userId = session.user.id;
 
   try {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        primaryProfession: data.primaryProfession,
-        secondaryRoles: data.secondaryRoles,
-        incomeType: data.incomeType,
-        preferredCurrency: data.preferredCurrency,
-        onboardingDone: true,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          primaryProfession: data.primaryProfession,
+          secondaryRoles: data.secondaryRoles.map((r) => r.name),
+          incomeType: data.incomeType,
+          preferredCurrency: data.preferredCurrency,
+          onboardingDone: true,
+        },
+      });
+
+      await tx.userRole.upsert({
+        where: { userId_roleName: { userId, roleName: data.primaryProfession } },
+        create: {
+          userId,
+          roleName: data.primaryProfession,
+          displayName: data.incomeType,
+          emoji: data.primaryEmoji,
+          isPrimary: true,
+          status: "ACTIVE",
+        },
+        update: {
+          displayName: data.incomeType,
+          emoji: data.primaryEmoji,
+          isPrimary: true,
+          status: "ACTIVE",
+          archivedAt: null,
+        },
+      });
+
+      for (const role of data.secondaryRoles.slice(0, 2)) {
+        await tx.userRole.upsert({
+          where: { userId_roleName: { userId, roleName: role.name } },
+          create: {
+            userId,
+            roleName: role.name,
+            displayName: "Additional role",
+            emoji: role.emoji,
+            isPrimary: false,
+            status: "ACTIVE",
+          },
+          update: {
+            emoji: role.emoji,
+            status: "ACTIVE",
+            archivedAt: null,
+          },
+        });
+      }
+
+      await tx.userTypeHistory.create({
+        data: {
+          userId,
+          toType: data.primaryProfession,
+          reason: "Onboarding completed",
+        },
+      });
     });
-    console.log("✅ DB save success");
   } catch (error) {
-    console.error("❌ Prisma Error:", error);
+    console.error("❌ Onboarding save error:", error);
     throw new Error("Failed to save onboarding data");
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
   redirect("/dashboard");
 }

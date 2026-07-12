@@ -63,7 +63,7 @@ const { handlers, auth: nextAuth, signIn: nextSignIn, signOut: nextSignOut } = N
 
 export const { GET, POST } = handlers;
 
-// අනිත් සර්වර් ඇක්ෂන්ස් (Actions) වලට බාධාවක් නොවී වැඩ කිරීමට මෙසේ export කරන්න
+
 export const auth = nextAuth;
 export const signIn = nextSignIn;
 export const signOut = nextSignOut;

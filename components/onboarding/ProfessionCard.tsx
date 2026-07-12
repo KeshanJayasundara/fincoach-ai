@@ -1,11 +1,13 @@
+import type { LucideIcon } from "lucide-react";
+
 interface ProfessionCardProps {
-  em: string;
+  icon: LucideIcon;
   name: string;
   isSelected: boolean;
   onClick: () => void;
 }
 
-export default function ProfessionCard({ em, name, isSelected, onClick }: ProfessionCardProps) {
+export default function ProfessionCard({ icon: Icon, name, isSelected, onClick }: ProfessionCardProps) {
   return (
     <div
       onClick={onClick}
@@ -32,7 +34,9 @@ export default function ProfessionCard({ em, name, isSelected, onClick }: Profes
         }
       }}
     >
-      <div style={{ fontSize: "20px", marginBottom: "3px", fontWeight: "normal" }}>{em}</div>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+        <Icon size={20} color="#5B4FE8" strokeWidth={2.25} />
+      </div>
       <div style={{ fontSize: "11px", fontWeight: 600, color: "#4A4568", lineHeight: "1.3" }}>{name}</div>
     </div>
   );

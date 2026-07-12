@@ -157,9 +157,12 @@ export default function ReportsPage() {
                 ))}
               </div>
             ) : reportLogs.length === 0 ? (
-              <div className="p-8 text-center text-[#8B87A8]">
-                <BarChart3 className="w-8 h-8 mx-auto mb-2 text-[#D1CCFF]" strokeWidth={1.5} />
-                No reports sent yet
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-16 h-16 bg-[#EEF0FD] rounded-full flex items-center justify-center">
+                  <BarChart3 className="w-8 h-8 text-[#9B93F5]" strokeWidth={2} />
+                </div>
+                <p className="text-[13px] text-[#8B87A8]">No reports sent yet</p>
+                <p className="text-[12px] text-[#C7C3F8]">Sent reports will show up here</p>
               </div>
             ) : (
               reportLogs.map((report) => (

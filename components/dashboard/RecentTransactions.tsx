@@ -3,32 +3,10 @@
 
 import { useRouter } from "next/navigation";
 import { RecentTransaction } from "@/actions/dashboard";
+import { getCategoryIcon } from "@/lib/categoryIcons";
 
 interface Props {
   transactions: RecentTransaction[];
-}
-
-function getCategoryStyle(category: string): { icon: string; iconBg: string } {
-  const lower = category.toLowerCase();
-  if (lower.includes("food") || lower.includes("grocery") || lower.includes("super"))
-    return { icon: "🛒", iconBg: "#FEF3C7" };
-  if (lower.includes("salary") || lower.includes("income") || lower.includes("hospital"))
-    return { icon: "💼", iconBg: "#DCFCE7" };
-  if (lower.includes("freelance") || lower.includes("consulting"))
-    return { icon: "💻", iconBg: "#DBEAFE" };
-  if (lower.includes("dining") || lower.includes("restaurant") || lower.includes("pizza") || lower.includes("food out"))
-    return { icon: "🍕", iconBg: "#EEF0FD" };
-  if (lower.includes("transport") || lower.includes("fuel") || lower.includes("uber") || lower.includes("taxi"))
-    return { icon: "🚗", iconBg: "#E0F2FE" };
-  if (lower.includes("util") || lower.includes("electric") || lower.includes("water") || lower.includes("bill"))
-    return { icon: "⚡", iconBg: "#FEF9C3" };
-  if (lower.includes("health") || lower.includes("medical") || lower.includes("pharmacy"))
-    return { icon: "🏥", iconBg: "#FCE7F3" };
-  if (lower.includes("shopping") || lower.includes("cloth"))
-    return { icon: "🛍️", iconBg: "#F3E8FF" };
-  if (lower.includes("entertain") || lower.includes("movie") || lower.includes("netflix"))
-    return { icon: "🎬", iconBg: "#FEE2E2" };
-  return { icon: "💳", iconBg: "#F3F4F6" };
 }
 
 export default function RecentTransactions({ transactions }: Props) {
@@ -51,14 +29,14 @@ export default function RecentTransactions({ transactions }: Props) {
       <div className="divide-y divide-[#EAE8FB]">
         {transactions.length > 0 ? (
           transactions.map((tx) => {
-            const { icon, iconBg } = getCategoryStyle(tx.category);
+            const { icon: Icon, bg } = getCategoryIcon(tx.category);
             return (
               <div key={tx.id} className="flex items-center gap-3 p-4">
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-                  style={{ background: iconBg }}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: bg }}
                 >
-                  {icon}
+                  <Icon className="w-4 h-4 text-[#4A4568]" strokeWidth={2.25} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-semibold text-[#1A1635] truncate">{tx.name}</div>

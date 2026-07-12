@@ -8,6 +8,8 @@ import AuthLogo from "@/components/auth/AuthLogo";
 import AuthButton from "@/components/auth/AuthButton";
 import OTPInput from "@/components/auth/OTPInput";
 import PasswordInput from "@/components/auth/PasswordInput";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEnvelope, faCircleCheck } from "@fortawesome/free-solid-svg-icons";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
@@ -183,7 +185,9 @@ export default function ForgotPasswordPage() {
           {step === 2 && (
             <div className="text-center">
               <div className="mb-6">
-                <div className="text-4xl mb-3">📧</div>
+                <div className="text-4xl mb-3 text-[#5B4FE8] flex items-center justify-center">
+                  <FontAwesomeIcon icon={faEnvelope} />
+                </div>
                 <div className="font-semibold text-[#1A1635]">Check your email</div>
                 <div className="text-xs text-gray-500 mt-1">We sent a 6-digit code to <strong>{email}</strong></div>
               </div>
@@ -219,7 +223,9 @@ export default function ForgotPasswordPage() {
 
           {step === 4 && (
             <div className="text-center py-8">
-              <div className="text-6xl mb-4">🎉</div>
+              <div className="text-6xl mb-4 text-[#5B4FE8] flex items-center justify-center">
+                <FontAwesomeIcon icon={faCircleCheck} />
+              </div>
               <div className="font-bold text-2xl text-[#1A1635]">Password Reset Successful!</div>
               <p className="text-gray-500 mt-3 mb-8">Your password has been updated successfully.</p>
               <AuthButton onClick={() => router.push("/login")}>

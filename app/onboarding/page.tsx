@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveOnboarding } from "@/actions/onboarding";
+import {
+  Stethoscope, Code2, GraduationCap, HeartPulse, Laptop, BookOpen,
+  Building2, Settings, Scale, Calculator, Pill, Palette, Palmtree,
+  Landmark, Megaphone, Building, Pencil, Briefcase, TrendingUp,
+  Shuffle, Store, Search, X, Check, Star, Globe, Compass, MapPin,
+  Globe2, Rocket, BookOpenCheck, UserRound,
+  type LucideIcon,
+} from "lucide-react";
 
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import ProfessionCard from "@/components/onboarding/ProfessionCard";
@@ -27,50 +35,50 @@ const chipStyles = [
   { bg: "#DCFCE7", color: "#14532D", border: "#86EFAC" },
 ];
 
-const professions = [
-  { em: "🏥", name: "Doctor" },
-  { em: "💻", name: "Software Engineer" },
-  { em: "🎓", name: "Student" },
-  { em: "🩺", name: "Nurse" },
-  { em: "🧑‍💼", name: "Freelancer" },
-  { em: "📚", name: "Teacher" },
-  { em: "🏢", name: "Business Owner" },
-  { em: "⚙️", name: "Engineer" },
-  { em: "⚖️", name: "Lawyer" },
-  { em: "📊", name: "Accountant" },
-  { em: "💊", name: "Pharmacist" },
-  { em: "🎨", name: "Designer" },
-  { em: "🌴", name: "Retired" },
-  { em: "🏛️", name: "Government" },
-  { em: "📣", name: "Marketing" },
-  { em: "🏗️", name: "Architect" },
-  { em: "✏️", name: "Other" },
+const professions: { icon: LucideIcon; name: string }[] = [
+  { icon: Stethoscope, name: "Doctor" },
+  { icon: Code2, name: "Software Engineer" },
+  { icon: GraduationCap, name: "Student" },
+  { icon: HeartPulse, name: "Nurse" },
+  { icon: Laptop, name: "Freelancer" },
+  { icon: BookOpen, name: "Teacher" },
+  { icon: Building2, name: "Business Owner" },
+  { icon: Settings, name: "Engineer" },
+  { icon: Scale, name: "Lawyer" },
+  { icon: Calculator, name: "Accountant" },
+  { icon: Pill, name: "Pharmacist" },
+  { icon: Palette, name: "Designer" },
+  { icon: Palmtree, name: "Retired" },
+  { icon: Landmark, name: "Government" },
+  { icon: Megaphone, name: "Marketing" },
+  { icon: Building, name: "Architect" },
+  { icon: Pencil, name: "Other" },
 ];
 
-const modalProfessions = [
-  { em: "💻", name: "Software Engineer" },
-  { em: "🎓", name: "Student" },
-  { em: "🩺", name: "Nurse" },
-  { em: "🧑‍💼", name: "Freelancer" },
-  { em: "📚", name: "Teacher" },
-  { em: "🏢", name: "Business Owner" },
-  { em: "⚙️", name: "Engineer" },
-  { em: "⚖️", name: "Lawyer" },
-  { em: "🏛️", name: "Architect" },
-  { em: "📊", name: "Accountant" },
-  { em: "🎨", name: "Designer" },
-  { em: "💼", name: "Consultant" },
-  { em: "💊", name: "Pharmacist" },
-  { em: "📣", name: "Marketing" },
-  { em: "📖", name: "Tutor" },
-  { em: "🌴", name: "Retired" },
+const modalProfessions: { icon: LucideIcon; name: string }[] = [
+  { icon: Code2, name: "Software Engineer" },
+  { icon: GraduationCap, name: "Student" },
+  { icon: HeartPulse, name: "Nurse" },
+  { icon: Laptop, name: "Freelancer" },
+  { icon: BookOpen, name: "Teacher" },
+  { icon: Building2, name: "Business Owner" },
+  { icon: Settings, name: "Engineer" },
+  { icon: Scale, name: "Lawyer" },
+  { icon: Building, name: "Architect" },
+  { icon: Calculator, name: "Accountant" },
+  { icon: Palette, name: "Designer" },
+  { icon: Briefcase, name: "Consultant" },
+  { icon: Pill, name: "Pharmacist" },
+  { icon: Megaphone, name: "Marketing" },
+  { icon: BookOpenCheck, name: "Tutor" },
+  { icon: Palmtree, name: "Retired" },
 ];
 
-const incomes = [
-  { em: "💼", label: "Fixed Salary", desc: "Monthly salary — predictable, stable income" },
-  { em: "📈", label: "Variable Income", desc: "Freelance, commission, gig work" },
-  { em: "🔀", label: "Mixed Income", desc: "Salary + side income" },
-  { em: "🏪", label: "Business Owner", desc: "Self-employed / business profit" },
+const incomes: { icon: LucideIcon; label: string; desc: string }[] = [
+  { icon: Briefcase, label: "Fixed Salary", desc: "Monthly salary — predictable, stable income" },
+  { icon: TrendingUp, label: "Variable Income", desc: "Freelance, commission, gig work" },
+  { icon: Shuffle, label: "Mixed Income", desc: "Salary + side income" },
+  { icon: Store, label: "Business Owner", desc: "Self-employed / business profit" },
 ];
 
 const popularCurrencies = [
@@ -233,19 +241,18 @@ const allCurrencies = [
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [primaryProf, setPrimaryProf] = useState("Doctor");
-  const [primaryEm, setPrimaryEm] = useState("🏥");
+  const [primaryIcon, setPrimaryIcon] = useState<LucideIcon>(() => Stethoscope);
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customProf, setCustomProf] = useState("");
-  const [additionalRoles, setAdditionalRoles] = useState<{ prof: string; em: string }[]>([]);
+  const [additionalRoles, setAdditionalRoles] = useState<{ prof: string; icon: LucideIcon }[]>([]);
 
   const [selectedIncome, setSelectedIncome] = useState("Fixed Salary");
-  const [selectedIncomeEm, setSelectedIncomeEm] = useState("💼");
 
   const [selectedCurrency, setSelectedCurrency] = useState("LKR");
   const [currSearch, setCurrSearch] = useState("");
 
   const [showAddRoleModal, setShowAddRoleModal] = useState(false);
-  const [modalSelected, setModalSelected] = useState<{ prof: string; em: string } | null>(null);
+  const [modalSelected, setModalSelected] = useState<{ prof: string; icon: LucideIcon } | null>(null);
   const [modalCustom, setModalCustom] = useState("");
   const [showModalCustomInput, setShowModalCustomInput] = useState(false);
 
@@ -254,15 +261,15 @@ export default function OnboardingPage() {
 
   const router = useRouter();
 
-  const handleProfClick = (name: string, em: string) => {
+  const handleProfClick = (name: string, icon: LucideIcon) => {
     if (name === "Other") {
       setShowCustomInput(true);
       setPrimaryProf(customProf || "Custom Profession");
-      setPrimaryEm("✏️");
+      setPrimaryIcon(() => Pencil);
     } else {
       setShowCustomInput(false);
       setPrimaryProf(name);
-      setPrimaryEm(em);
+      setPrimaryIcon(() => icon);
       setCustomProf("");
     }
   };
@@ -286,9 +293,9 @@ export default function OnboardingPage() {
 
   const confirmAddRole = () => {
     const roleName = showModalCustomInput ? modalCustom.trim() : modalSelected?.prof;
-    const roleEm = showModalCustomInput ? "✏️" : modalSelected?.em ?? "👤";
+    const roleIcon = showModalCustomInput ? Pencil : modalSelected?.icon ?? UserRound;
     if (!roleName) return;
-    setAdditionalRoles([...additionalRoles, { prof: roleName, em: roleEm }]);
+    setAdditionalRoles([...additionalRoles, { prof: roleName, icon: roleIcon }]);
     closeAddRoleModal();
   };
 
@@ -311,7 +318,8 @@ export default function OnboardingPage() {
     try {
       await saveOnboarding({
         primaryProfession: showCustomInput ? customProf || "Custom Profession" : primaryProf,
-        secondaryRoles: additionalRoles.map(r => r.prof),
+        primaryEmoji: showCustomInput ? "✏️" : "",
+        secondaryRoles: additionalRoles.map(r => ({ name: r.prof, emoji: "" })),
         incomeType: selectedIncome,
         preferredCurrency: selectedCurrency,
       });
@@ -329,6 +337,8 @@ export default function OnboardingPage() {
 
   const modalCanConfirm = showModalCustomInput ? modalCustom.trim().length > 0 : modalSelected !== null;
 
+  const PrimaryIcon = primaryIcon;
+
   return (
     <>
       <style>{`
@@ -345,7 +355,7 @@ export default function OnboardingPage() {
         .ob-btn-primary { padding: 10px 16px; border: none; border-radius: 8px; background: #5B4FE8; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Outfit', sans-serif; transition: all .15s; }
         .ob-inp { width: 100%; padding: 10px 12px; border: 1px solid #D1CCFF; border-radius: 9px; font-family: 'Outfit', sans-serif; font-size: 14px; color: #1A1635; background: #F8F7FF; outline: none; transition: all .15s; }
         .ob-inp:focus { border-color: #5B4FE8; background: #ffffff; box-shadow: 0 0 0 3px rgba(91,79,232,0.10); }
-        .curr-section-hdr { grid-column: 1 / -1; font-size: 10px; font-weight: 700; color: #8B87A8; text-transform: uppercase; letter-spacing: .08em; padding: 6px 0 2px; }
+        .curr-section-hdr { grid-column: 1 / -1; font-size: 10px; font-weight: 700; color: #8B87A8; text-transform: uppercase; letter-spacing: .08em; padding: 6px 0 2px; display: flex; align-items: center; gap: 5px; }
         .curr-section-hdr:first-child { padding-top: 4px; }
 
         /* ── Mobile responsive ── */
@@ -391,10 +401,10 @@ export default function OnboardingPage() {
                 {professions.map((prof) => (
                   <ProfessionCard
                     key={prof.name}
-                    em={prof.em}
+                    icon={prof.icon}
                     name={prof.name}
                     isSelected={prof.name === "Other" ? showCustomInput : primaryProf === prof.name && !showCustomInput}
-                    onClick={() => handleProfClick(prof.name, prof.em)}
+                    onClick={() => handleProfClick(prof.name, prof.icon)}
                   />
                 ))}
               </div>
@@ -416,12 +426,16 @@ export default function OnboardingPage() {
               )}
 
               <div style={{ background: "#EEF0FD", border: "1px solid #C7C3F8", borderRadius: "10px", padding: "11px 14px", marginTop: "12px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "20px" }}>{primaryEm}</span>
+                <span style={{ width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <PrimaryIcon size={20} color="#5B4FE8" strokeWidth={2.25} />
+                </span>
                 <div style={{ flex: 1, minWidth: "80px" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "#3C3489" }}>Primary profession</div>
                   <div style={{ fontSize: "13px", color: "#534AB7", fontWeight: 600 }}>{displayedPrimaryProf}</div>
                 </div>
-                <span style={{ display: "inline-flex", alignItems: "center", background: "#EEF0FD", color: "#3C3489", fontSize: "11px", fontWeight: 600, padding: "3px 9px", borderRadius: "999px", letterSpacing: ".01em", whiteSpace: "nowrap" }}>Primary ✓</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", background: "#EEF0FD", color: "#3C3489", fontSize: "11px", fontWeight: 600, padding: "3px 9px", borderRadius: "999px", letterSpacing: ".01em", whiteSpace: "nowrap" }}>
+                  Primary <Check size={11} strokeWidth={3} />
+                </span>
               </div>
 
               <div style={{ marginTop: "16px" }}>
@@ -435,11 +449,14 @@ export default function OnboardingPage() {
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px", minHeight: "28px" }}>
                   {additionalRoles.map((role, i) => {
                     const st = chipStyles[i % chipStyles.length];
+                    const RoleIcon = role.icon;
                     return (
                       <div key={i} style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "5px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, background: st.bg, color: st.color, border: `1px solid ${st.border}`, fontFamily: "'Outfit', sans-serif" }}>
-                        <span>{role.em}</span>
+                        <RoleIcon size={13} strokeWidth={2.25} />
                         <span>{role.prof}</span>
-                        <button onClick={() => removeRole(i)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6, fontSize: "10px", marginLeft: "2px", color: "inherit", lineHeight: 1, padding: 0 }}>✕</button>
+                        <button onClick={() => removeRole(i)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6, marginLeft: "2px", color: "inherit", lineHeight: 1, padding: 0, display: "flex" }}>
+                          <X size={11} strokeWidth={2.5} />
+                        </button>
                       </div>
                     );
                   })}
@@ -450,7 +467,9 @@ export default function OnboardingPage() {
                     + Add additional role
                   </button>
                 ) : (
-                  <div style={{ fontSize: "11px", color: "#D97706", fontWeight: 600, marginTop: "4px" }}>✓ Maximum 2 additional roles added</div>
+                  <div style={{ fontSize: "11px", color: "#D97706", fontWeight: 600, marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <Check size={12} strokeWidth={3} /> Maximum 2 additional roles added
+                  </div>
                 )}
               </div>
 
@@ -471,14 +490,11 @@ export default function OnboardingPage() {
                 {incomes.map((inc) => (
                   <IncomeCard
                     key={inc.label}
-                    em={inc.em}
+                    icon={inc.icon}
                     label={inc.label}
                     desc={inc.desc}
                     isSelected={selectedIncome === inc.label}
-                    onClick={() => {
-                      setSelectedIncome(inc.label);
-                      setSelectedIncomeEm(inc.em);
-                    }}
+                    onClick={() => setSelectedIncome(inc.label)}
                   />
                 ))}
               </div>
@@ -500,7 +516,9 @@ export default function OnboardingPage() {
               <div style={{ fontSize: "13px", color: "#8B87A8", marginBottom: "12px" }}>All transactions converted to this currency.</div>
 
               <div style={{ position: "relative", marginBottom: "10px" }}>
-                <span style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", pointerEvents: "none" }}>🔍</span>
+                <span style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", display: "flex" }}>
+                  <Search size={14} color="#8B87A8" strokeWidth={2.25} />
+                </span>
                 <input
                   className="ob-inp"
                   style={{ paddingLeft: "34px" }}
@@ -518,27 +536,27 @@ export default function OnboardingPage() {
                   ))
                 ) : (
                   <>
-                    <div className="curr-section-hdr">⭐ Popular</div>
+                    <div className="curr-section-hdr"><Star size={11} strokeWidth={2.5} /> Popular</div>
                     {popularCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-                    <div className="curr-section-hdr">🌏 Asia Pacific</div>
+                    <div className="curr-section-hdr"><Globe size={11} strokeWidth={2.5} /> Asia Pacific</div>
                     {asiaPacificCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-                    <div className="curr-section-hdr">🕌 Middle East</div>
+                    <div className="curr-section-hdr"><Landmark size={11} strokeWidth={2.5} /> Middle East</div>
                     {middleEastCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-                    <div className="curr-section-hdr">🌍 Africa</div>
+                    <div className="curr-section-hdr"><Compass size={11} strokeWidth={2.5} /> Africa</div>
                     {africaCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-                    <div className="curr-section-hdr">🌎 Americas</div>
+                    <div className="curr-section-hdr"><MapPin size={11} strokeWidth={2.5} /> Americas</div>
                     {americasCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
-                    <div className="curr-section-hdr">🌐 Europe</div>
+                    <div className="curr-section-hdr"><Globe2 size={11} strokeWidth={2.5} /> Europe</div>
                     {europeCurrencies.map(c => (
                       <CurrencyCard key={c.code} code={c.code} name={c.name} isSelected={selectedCurrency === c.code} onClick={() => setSelectedCurrency(c.code)} />
                     ))}
@@ -552,9 +570,9 @@ export default function OnboardingPage() {
                   onClick={handleFinishOnboarding}
                   disabled={loading}
                   className="ob-btn-primary ob-finish-btn"
-                  style={{ flex: 1, maxWidth: "220px" }}
+                  style={{ flex: 1, maxWidth: "220px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                 >
-                  {loading ? "Saving..." : "🚀 Go to Dashboard →"}
+                  {loading ? "Saving..." : (<><Rocket size={14} strokeWidth={2.25} /> Go to Dashboard →</>)}
                 </button>
               </div>
 
@@ -573,25 +591,34 @@ export default function OnboardingPage() {
           <div style={{ background: "#ffffff", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "480px", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 16px 48px rgba(91,79,232,0.18)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
               <div style={{ fontSize: "16px", fontWeight: 700, color: "#1A1635" }}>Add an additional role</div>
-              <button onClick={closeAddRoleModal} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#8B87A8", lineHeight: 1 }}>✕</button>
+              <button onClick={closeAddRoleModal} style={{ background: "none", border: "none", cursor: "pointer", color: "#8B87A8", lineHeight: 1, display: "flex" }}>
+                <X size={18} strokeWidth={2.25} />
+              </button>
             </div>
 
             <div className="ob-modal-grid">
-              {availableModalProfs.map(p => (
-                <div
-                  key={p.name}
-                  className={`modal-pcard${modalSelected?.prof === p.name && !showModalCustomInput ? " sel" : ""}`}
-                  onClick={() => { setModalSelected({ prof: p.name, em: p.em }); setShowModalCustomInput(false); }}
-                >
-                  <div style={{ fontSize: "22px", marginBottom: "4px" }}>{p.em}</div>
-                  <div style={{ fontSize: "10px", fontWeight: 600, color: "#4A4568", lineHeight: 1.2 }}>{p.name}</div>
-                </div>
-              ))}
+              {availableModalProfs.map(p => {
+                const ModalIcon = p.icon;
+                return (
+                  <div
+                    key={p.name}
+                    className={`modal-pcard${modalSelected?.prof === p.name && !showModalCustomInput ? " sel" : ""}`}
+                    onClick={() => { setModalSelected({ prof: p.name, icon: p.icon }); setShowModalCustomInput(false); }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+                      <ModalIcon size={20} color="#5B4FE8" strokeWidth={2.25} />
+                    </div>
+                    <div style={{ fontSize: "10px", fontWeight: 600, color: "#4A4568", lineHeight: 1.2 }}>{p.name}</div>
+                  </div>
+                );
+              })}
               <div
                 className={`modal-pcard${showModalCustomInput ? " sel" : ""}`}
                 onClick={() => { setShowModalCustomInput(true); setModalSelected(null); }}
               >
-                <div style={{ fontSize: "22px", marginBottom: "4px" }}>✏️</div>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: "4px" }}>
+                  <Pencil size={20} color="#5B4FE8" strokeWidth={2.25} />
+                </div>
                 <div style={{ fontSize: "10px", fontWeight: 600, color: "#4A4568", lineHeight: 1.2 }}>Other</div>
               </div>
             </div>
