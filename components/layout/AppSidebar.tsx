@@ -73,7 +73,7 @@ export default function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
   const handleLogout = async () => {
     onClose();
     await signOut({
-      callbackUrl: "/login",
+      callbackUrl: "/",
       redirect: true,
     });
   };
