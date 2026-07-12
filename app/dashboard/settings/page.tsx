@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { X, Check } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
+import { X, Check, AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react";
 import { ROLE_ICON_OPTIONS, getRoleIcon } from "@/lib/roleIcons";
 import ProfessionCard from "@/components/onboarding/ProfessionCard";
+import { deleteAccount } from "@/actions/settings";
 
 type Role = {
   id: string;
@@ -37,6 +38,14 @@ export default function SettingsPage() {
   const [formIconKey, setFormIconKey] = useState(ROLE_ICON_OPTIONS[0].key);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const toggleNotification = (key: keyof typeof notifications) => {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -139,6 +148,29 @@ export default function SettingsPage() {
   };
 
   const isOtherSelected = formIconKey === "other";
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+      setDeleteError('Please type "DELETE" to confirm.');
+      return;
+    }
+    if (!deletePassword) {
+      setDeleteError("Please enter your current password.");
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteAccount(deletePassword);
+      // Account + all related data is gone — sign out and send them home.
+      await signOut({ callbackUrl: "/" });
+    } catch (err: any) {
+      setDeleteError(err.message || "Failed to delete account. Please try again.");
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -363,7 +395,16 @@ export default function SettingsPage() {
                   <div className="text-[13px] font-semibold text-[#DC2626]">Delete account</div>
                   <div className="text-[11px] text-[#8B87A8]">Permanently remove all data</div>
                 </div>
-                <button className="px-3 py-1.5 text-[12px] font-medium text-[#991B1B] bg-[#FEE2E2] border border-[#FECACA] rounded-lg hover:bg-[#FECACA] transition-all">
+                <button
+                  onClick={() => {
+                    setDeleteConfirmText("");
+                    setDeletePassword("");
+                    setShowDeletePassword(false);
+                    setDeleteError(null);
+                    setShowDeleteModal(true);
+                  }}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#991B1B] bg-[#FEE2E2] border border-[#FECACA] rounded-lg hover:bg-[#FECACA] transition-all"
+                >
                   Delete
                 </button>
               </div>
@@ -447,6 +488,88 @@ export default function SettingsPage() {
                 className="px-4 py-2 text-[12px] font-semibold text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all disabled:opacity-50"
               >
                 {saving ? "Saving..." : modalMode === "add" ? "Add role" : "Save changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setShowDeleteModal(false); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[440px] shadow-2xl">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-full bg-[#FEE2E2] flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={18} className="text-[#DC2626]" strokeWidth={2.25} />
+              </div>
+              <div className="text-[15px] font-bold text-[#1A1635]">Delete your account?</div>
+            </div>
+
+            <p className="text-[12px] text-[#4A4568] leading-relaxed mb-3">
+              This permanently deletes your account and all associated data —
+              transactions, goals, portfolio assets, chat history, and reports.
+              This action <strong>cannot be undone</strong>.
+            </p>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">
+              Type <strong>DELETE</strong> to confirm
+            </label>
+            <input
+              className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#DC2626] outline-none transition-all"
+              placeholder="DELETE"
+              value={deleteConfirmText}
+              onChange={(e) => { setDeleteConfirmText(e.target.value); setDeleteError(null); }}
+              disabled={deleting}
+              autoFocus
+            />
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5 mt-3">
+              Current password
+            </label>
+            <div className="relative">
+              <input
+                className="w-full px-3 py-2 pr-9 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#DC2626] outline-none transition-all"
+                type={showDeletePassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={deletePassword}
+                onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(null); }}
+                disabled={deleting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowDeletePassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B87A8] hover:text-[#4A4568]"
+                tabIndex={-1}
+              >
+                {showDeletePassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-[10.5px] text-[#8B87A8] mt-1">
+              Signed in with Google? Leave this blank.
+            </p>
+
+            {deleteError && (
+              <div className="text-[11px] text-[#DC2626] mt-2">{deleteError}</div>
+            )}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-3 py-2 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#DC2626] rounded-lg hover:bg-[#B91C1C] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {deleting && <Loader2 size={13} className="animate-spin" />}
+                {deleting ? "Deleting…" : "Permanently delete"}
               </button>
             </div>
           </div>
