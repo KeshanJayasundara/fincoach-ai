@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import { useSession } from "next-auth/react";
 import { sendAIMessage, getAIUsage, getChatHistory, type ChatMessage } from "@/actions/ai";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -34,6 +35,8 @@ const SUGGESTIONS = [
 ];
 
 export default function AIChatPage() {
+  const { data: session } = useSession();
+
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input,    setInput]    = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -44,6 +47,16 @@ export default function AIChatPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
+
+  // Get first two letters for avatar — same logic as AppTopbar
+  const getAvatarLetters = () => {
+    const name = session?.user?.name || "User";
+    const words = name.trim().split(" ");
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   // Fetch current usage + this month's saved chat history on mount.
   useEffect(() => {
@@ -249,7 +262,7 @@ export default function AIChatPage() {
               {/* User Avatar */}
               {msg.role === "user" && (
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-xs font-bold shrink-0 mt-1 shadow-sm">
-                  K
+                  {getAvatarLetters()}
                 </div>
               )}
             </div>

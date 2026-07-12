@@ -5,14 +5,16 @@ import { prisma } from "@/lib/prisma";
 // PUT - role එකේ displayName / emoji edit කරනවා
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const role = await prisma.userRole.findUnique({ where: { id: params.id } });
+  const role = await prisma.userRole.findUnique({ where: { id } });
   if (!role || role.userId !== session.user.id) {
     return NextResponse.json({ error: "Role not found" }, { status: 404 });
   }
@@ -23,7 +25,7 @@ export async function PUT(
   }
 
   const updated = await prisma.userRole.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       displayName: displayName.trim(),
       emoji: emoji || role.emoji,
@@ -36,14 +38,16 @@ export async function PUT(
 // PATCH - archive කරනවා (Primary role archive කරන්න බැහැ)
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const role = await prisma.userRole.findUnique({ where: { id: params.id } });
+  const role = await prisma.userRole.findUnique({ where: { id } });
   if (!role || role.userId !== session.user.id) {
     return NextResponse.json({ error: "Role not found" }, { status: 404 });
   }
@@ -52,7 +56,7 @@ export async function PATCH(
   }
 
   const updated = await prisma.userRole.update({
-    where: { id: params.id },
+    where: { id },
     data: { status: "ARCHIVED", archivedAt: new Date() },
   });
 

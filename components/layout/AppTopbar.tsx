@@ -316,7 +316,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               </div>
             </div>
 
-            <div className="flex items-center">
+            <div className="flex items-center gap-2 md:gap-3">
               {queriesLeft !== null ? (
                 <div className="flex items-center gap-1.5 text-[11px] font-semibold bg-[#F8F7FF] px-3 py-1.5 rounded-full border border-[#EAE8FB]">
                   <FontAwesomeIcon icon={faBolt} className="text-[#9B93F5] text-[10px]" />
@@ -326,6 +326,14 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               ) : (
                 <div className="h-7 w-28 rounded-full bg-[#EAE8FB] animate-pulse" />
               )}
+
+              {/* Profile avatar - same as standard header */}
+              <div
+                onClick={() => router.push("/dashboard/settings")}
+                className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-gradient-to-br from-[#5B4FE8] to-[#9B93F5] flex items-center justify-center text-white text-[12px] md:text-[13px] font-bold cursor-pointer shrink-0"
+              >
+                {getAvatarLetters()}
+              </div>
             </div>
           </div>
         </header>
