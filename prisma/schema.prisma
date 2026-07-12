@@ -43,6 +43,7 @@ model User {
   userRoles         UserRole[]
   typeHistory       UserTypeHistory[]
   chatMessages      ChatMessage[]
+  assets            Asset[]
 }
 
 model Account {
@@ -159,4 +160,21 @@ model ChatMessage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// ─── PORTFOLIO ASSETS ────────────────────
+model Asset {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  category      String   // "Crypto" | "Stock / ETF" | "Bank / Fixed Deposit" | "Commodity" | "Other"
+  units         String?  // display text only, e.g. "0.0015 BTC", "5 units"
+  value         Float    // current value, in user's preferredCurrency
+  costBasis     Float    // original invested value — used to calc P&L (defaults to value if not given)
+  currency      String   @default("USD")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

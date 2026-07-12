@@ -55,7 +55,17 @@ const { handlers, auth: nextAuth, signIn: nextSignIn, signOut: nextSignOut } = N
       return token;
     },
     async session({ session, token }) {
-      if (session.user) session.user.id = token.id as string;
+      if (session.user) {
+        session.user.id = token.id as string;
+
+        // Fetch fresh so a currency change in Settings shows up
+        // immediately without waiting for the JWT to rotate.
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { preferredCurrency: true },
+        });
+        session.user.currency = dbUser?.preferredCurrency ?? "USD";
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {

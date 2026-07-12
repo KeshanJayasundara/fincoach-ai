@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb } from "lucide-react";
+import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb, Coins } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
+import { createAsset } from "@/actions/portfolio"; // 👈 real server action (stub removed)
 import { getAIUsage } from "@/actions/ai";
 import { getRoleIcon } from "@/lib/roleIcons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -20,10 +21,12 @@ function AddGoalModal({
   isOpen,
   onClose,
   onSuccess,
+  currency,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  currency: string;
 }) {
   const [name, setName]                 = useState("");
   const [targetAmount, setTargetAmount] = useState("");
@@ -118,7 +121,7 @@ function AddGoalModal({
             </label>
             <div className="flex gap-2">
               <div className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white text-[#4A4568] w-20 flex items-center justify-center shrink-0">
-                LKR
+                {currency}
               </div>
               <input
                 type="number"
@@ -191,15 +194,220 @@ function AddGoalModal({
   );
 }
 
+/* ── Add Asset Modal ── */
+function AddAssetModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  currency,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+  currency: string;
+}) {
+  const categories = ["Crypto", "Stock / ETF", "Bank / Fixed Deposit", "Commodity", "Other"];
+
+  const [name, setName]         = useState("");
+  const [category, setCategory] = useState(categories[0]);
+  const [units, setUnits]       = useState("");
+  const [value, setValue]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+
+  if (!isOpen) return null;
+
+  const resetForm = () => {
+    setName(""); setCategory(categories[0]); setUnits(""); setValue("");
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !value) {
+      setError("Asset name and current value are required.");
+      return;
+    }
+    if (parseFloat(value) <= 0 || isNaN(parseFloat(value))) {
+      setError("Please enter a valid value.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      await createAsset({
+        name: name.trim(),
+        category,
+        units: units.trim(),
+        value: parseFloat(value),
+      });
+      resetForm();
+      onSuccess?.();
+      onClose();
+    } catch {
+      setError("Failed to add asset. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  const aiTips = [
+    "Keep any single asset class under ~30% of your portfolio",
+    "Track units precisely so P&L stays accurate",
+    "Update the value regularly for a real-time breakdown",
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="absolute inset-0 bg-[#1A1635]/60 backdrop-blur-[2px]" onClick={onClose} />
+
+      <div className="relative w-full sm:max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden z-10 max-h-[92dvh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#EAE8FB] flex-shrink-0">
+          <div>
+            <h2 className="text-[15px] font-bold text-[#1A1635]">Add Asset</h2>
+            <p className="text-[11px] text-[#8B87A8] mt-0.5">Add a holding to your portfolio</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#EAE8FB] text-[#8B87A8] hover:text-[#1A1635] hover:border-[#C7C3F8] transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Tab strip */}
+        <div className="flex gap-1 p-3 bg-[#F8F7FF] border-b border-[#EAE8FB] flex-shrink-0">
+          <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-[12px] font-semibold bg-white text-[#5B4FE8] shadow-sm border border-[#EAE8FB]">
+            <Coins size={12} />
+            New Holding
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
+          {/* Asset Name */}
+          <div>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Asset Name
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Bitcoin, S&P 500 ETF..."
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(""); }}
+              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] bg-white transition-colors"
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] bg-white transition-colors"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Units / Quantity */}
+          <div>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Units / Quantity{" "}
+              <span className="font-normal normal-case text-[#C4C0DC]">(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 0.0015 BTC, 5 units, 12 months"
+              value={units}
+              onChange={(e) => setUnits(e.target.value)}
+              className="w-full px-3 py-2.5 text-[12px] border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] transition-colors"
+            />
+          </div>
+
+          {/* Current Value */}
+          <div>
+            <label className="text-[11px] font-bold text-[#8B87A8] uppercase tracking-wider mb-1.5 block">
+              Current Value
+            </label>
+            <div className="flex gap-2">
+              <div className="px-3 py-2.5 text-[12px] font-semibold border border-[#D1CCFF] rounded-lg bg-white text-[#4A4568] w-20 flex items-center justify-center shrink-0">
+                {currency}
+              </div>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={value}
+                onChange={(e) => { setValue(e.target.value); setError(""); }}
+                min={1}
+                className="flex-1 px-3 py-2.5 text-[14px] font-semibold border border-[#D1CCFF] rounded-lg focus:border-[#5B4FE8] outline-none text-[#1A1635] placeholder:text-[#C4C0DC] transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* AI Tips */}
+          <div className="bg-gradient-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-3.5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="w-6 h-6 bg-[#5B4FE8]/30 rounded-md flex items-center justify-center shrink-0">
+                <Lightbulb size={12} className="text-[#9B93F5]" />
+              </div>
+              <span className="text-[12px] font-bold text-[#C7C3F8]">AI Portfolio Tips</span>
+            </div>
+            {aiTips.map((tip) => (
+              <div key={tip} className="flex items-start gap-2 text-[11px] text-white/60 mb-1.5 last:mb-0 leading-relaxed">
+                <div className="w-1 h-1 rounded-full bg-[#9B93F5] shrink-0 mt-1.5" />
+                {tip}
+              </div>
+            ))}
+          </div>
+
+          {error && (
+            <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-2 pt-1 pb-1">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {loading ? "Adding…" : "Add Asset"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Topbar ── */
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const router   = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const currency = session?.user?.currency || "USD";
 
   const [notifications]                         = useState(3);
-  const [showAddModal, setShowAddModal]         = useState(false);
-  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
+  const [showAddModal, setShowAddModal]           = useState(false);
+  const [showAddGoalModal, setShowAddGoalModal]   = useState(false);
+  const [showAddAssetModal, setShowAddAssetModal] = useState(false);
   const [queriesLeft, setQueriesLeft]           = useState<number | null>(null);
   const [primaryRole, setPrimaryRole]           = useState<{ emoji: string | null; roleName: string } | null>(null);
 
@@ -283,7 +491,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
     if (pathname.includes("/goals"))
       return { title: "Savings Goals", showAddButton: true, addAction: () => setShowAddGoalModal(true) };
     if (pathname.includes("/portfolio"))
-      return { title: "Portfolio", showAddButton: true, addAction: () => router.push("/dashboard/portfolio/add") };
+      return { title: "Portfolio", showAddButton: true, addAction: () => setShowAddAssetModal(true) };
     if (pathname.includes("/reports"))
       return { title: "Financial Reports", showAddButton: false, addAction: null };
     if (pathname.includes("/settings"))
@@ -292,7 +500,11 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   };
 
   const { title, showAddButton, addAction } = getPageConfig();
-  const addButtonLabel = pathname.includes("/goals") ? "Add Goal" : "Add Transaction";
+  const addButtonLabel = pathname.includes("/goals")
+    ? "Add Goal"
+    : pathname.includes("/portfolio")
+    ? "Add Asset"
+    : "Add Transaction";
 
   const PrimaryRoleIcon = getRoleIcon(primaryRole?.emoji);
 
@@ -413,6 +625,14 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
         isOpen={showAddGoalModal}
         onClose={() => setShowAddGoalModal(false)}
         onSuccess={() => router.refresh()}
+        currency={currency}
+      />
+
+      <AddAssetModal
+        isOpen={showAddAssetModal}
+        onClose={() => setShowAddAssetModal(false)}
+        onSuccess={() => router.refresh()}
+        currency={currency}
       />
     </>
   );
