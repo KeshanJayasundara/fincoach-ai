@@ -58,11 +58,22 @@ const { handlers, auth: nextAuth, signIn: nextSignIn, signOut: nextSignOut } = N
       if (session.user) session.user.id = token.id as string;
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Force any relative or same-origin redirect to stay on baseUrl,
+      // preventing a stale/incorrect NEXTAUTH_URL from sending users
+      // to the wrong host (e.g. localhost) after login/logout.
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        // ignore invalid URL
+      }
+      return baseUrl;
+    },
   },
 });
 
 export const { GET, POST } = handlers;
-
 
 export const auth = nextAuth;
 export const signIn = nextSignIn;
