@@ -58,13 +58,17 @@ const { handlers, auth: nextAuth, signIn: nextSignIn, signOut: nextSignOut } = N
       if (session.user) {
         session.user.id = token.id as string;
 
-        // Fetch fresh so a currency change in Settings shows up
+        // Fetch fresh so name/email/currency changes in Settings show up
         // immediately without waiting for the JWT to rotate.
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { preferredCurrency: true },
+          select: { name: true, email: true, preferredCurrency: true },
         });
-        session.user.currency = dbUser?.preferredCurrency ?? "USD";
+        if (dbUser) {
+          session.user.name = dbUser.name;
+          session.user.email = dbUser.email;
+          session.user.currency = dbUser.preferredCurrency ?? "USD";
+        }
       }
       return session;
     },

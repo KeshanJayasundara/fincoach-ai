@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { X, Check, AlertTriangle, Loader2, Eye, EyeOff } from "lucide-react";
+import { X, Check, AlertTriangle, Loader2, Eye, EyeOff, Search, Pencil, CheckCircle2 } from "lucide-react";
 import { ROLE_ICON_OPTIONS, getRoleIcon } from "@/lib/roleIcons";
 import ProfessionCard from "@/components/onboarding/ProfessionCard";
-import { deleteAccount } from "@/actions/settings";
+import {
+  deleteAccount,
+  updateName,
+  updateEmail,
+  updateCurrency,
+  updatePassword,
+} from "@/actions/settings";
+import { ALL_CURRENCIES, getCurrencyDisplayName } from "@/lib/currencies";
 
 type Role = {
   id: string;
@@ -16,7 +23,13 @@ type Role = {
 };
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
+
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 3000);
+  };
 
   const [notifications, setNotifications] = useState({
     monthlyReport: true,
@@ -24,6 +37,34 @@ export default function SettingsPage() {
     goalMilestones: false,
     weeklyDigest: false,
   });
+
+  // ── Profile edit modals ──
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState("");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [savingCurrency, setSavingCurrency] = useState(false);
+  const [currencyError, setCurrencyError] = useState<string | null>(null);
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const [roles, setRoles] = useState<Role[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
@@ -149,6 +190,124 @@ export default function SettingsPage() {
 
   const isOtherSelected = formIconKey === "other";
 
+  // ── Full name ──
+  const openNameModal = () => {
+    setNameInput(session?.user?.name || "");
+    setNameError(null);
+    setShowNameModal(true);
+  };
+
+  const submitName = async () => {
+    if (!nameInput.trim()) {
+      setNameError("Name cannot be empty.");
+      return;
+    }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      await updateName(nameInput.trim());
+      await updateSession(); // refresh session so the new name shows immediately
+      setShowNameModal(false);
+      showToast("Name updated successfully");
+    } catch (err: any) {
+      setNameError(err.message || "Failed to update name.");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  // ── Email ──
+  const openEmailModal = () => {
+    setEmailInput(session?.user?.email || "");
+    setEmailPassword("");
+    setShowEmailPassword(false);
+    setEmailError(null);
+    setShowEmailModal(true);
+  };
+
+  const submitEmail = async () => {
+    if (!emailInput.trim()) {
+      setEmailError("Email cannot be empty.");
+      return;
+    }
+    setSavingEmail(true);
+    setEmailError(null);
+    try {
+      await updateEmail(emailInput.trim(), emailPassword);
+      await updateSession();
+      setShowEmailModal(false);
+      showToast("Email updated successfully");
+    } catch (err: any) {
+      setEmailError(err.message || "Failed to update email.");
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  // ── Base currency ──
+  const openCurrencyModal = () => {
+    setSelectedCurrency(session?.user?.currency || "USD");
+    setCurrencySearch("");
+    setCurrencyError(null);
+    setShowCurrencyModal(true);
+  };
+
+  const submitCurrency = async () => {
+    setSavingCurrency(true);
+    setCurrencyError(null);
+    try {
+      await updateCurrency(selectedCurrency);
+      await updateSession();
+      setShowCurrencyModal(false);
+      showToast("Currency updated successfully");
+    } catch (err: any) {
+      setCurrencyError(err.message || "Failed to update currency.");
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
+
+  const filteredCurrencies = currencySearch.trim()
+    ? ALL_CURRENCIES.filter(
+        (c) =>
+          c.code.toLowerCase().includes(currencySearch.toLowerCase()) ||
+          c.name.toLowerCase().includes(currencySearch.toLowerCase())
+      )
+    : ALL_CURRENCIES;
+
+  // ── Password ──
+  const openPasswordModal = () => {
+    setCurrentPasswordInput("");
+    setNewPasswordInput("");
+    setConfirmPasswordInput("");
+    setShowCurrentPw(false);
+    setShowNewPw(false);
+    setPasswordError(null);
+    setShowPasswordModal(true);
+  };
+
+  const submitPassword = async () => {
+    if (newPasswordInput.length < 8) {
+      setPasswordError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPasswordError("New passwords don't match.");
+      return;
+    }
+    setSavingPassword(true);
+    setPasswordError(null);
+    try {
+      await updatePassword(currentPasswordInput, newPasswordInput);
+      setShowPasswordModal(false);
+      showToast("Password updated successfully");
+    } catch (err: any) {
+      setPasswordError(err.message || "Failed to update password.");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
       setDeleteError('Please type "DELETE" to confirm.');
@@ -173,7 +332,22 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <>
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-[100] flex items-center gap-2 bg-white border border-[#BBF7D0] shadow-lg rounded-xl px-4 py-3 text-[13px] font-medium text-[#1A1635] animate-[toastIn_0.2s_ease]">
+          <CheckCircle2 size={16} className="text-[#16A34A] flex-shrink-0" />
+          {toast}
+        </div>
+      )}
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Left Column - Profile & Roles */}
         <div className="space-y-4">
@@ -186,7 +360,10 @@ export default function SettingsPage() {
                   <div className="text-[13px] font-semibold text-[#1A1635]">Full name</div>
                   <div className="text-[11px] text-[#8B87A8]">{session?.user?.name || "—"}</div>
                 </div>
-                <button className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all">
+                <button
+                  onClick={openNameModal}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
+                >
                   Edit
                 </button>
               </div>
@@ -195,25 +372,36 @@ export default function SettingsPage() {
                   <div className="text-[13px] font-semibold text-[#1A1635]">Email</div>
                   <div className="text-[11px] text-[#8B87A8]">{session?.user?.email || "—"}</div>
                 </div>
-                <button className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all">
+                <button
+                  onClick={openEmailModal}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
+                >
                   Edit
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
                 <div>
                   <div className="text-[13px] font-semibold text-[#1A1635]">Base currency</div>
-                  <div className="text-[11px] text-[#8B87A8]">LKR — Sri Lankan Rupee</div>
+                  <div className="text-[11px] text-[#8B87A8]">
+                    {session?.user?.currency || "USD"} — {getCurrencyDisplayName(session?.user?.currency || "USD")}
+                  </div>
                 </div>
-                <button className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all">
+                <button
+                  onClick={openCurrencyModal}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
+                >
                   Change
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
                   <div className="text-[13px] font-semibold text-[#1A1635]">Password</div>
-                  <div className="text-[11px] text-[#8B87A8]">Last changed 3 months ago</div>
+                  <div className="text-[11px] text-[#8B87A8]">Keep your account secure</div>
                 </div>
-                <button className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all">
+                <button
+                  onClick={openPasswordModal}
+                  className="px-3 py-1.5 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
+                >
                   Update
                 </button>
               </div>
@@ -494,6 +682,276 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Edit Full Name Modal */}
+      {showNameModal && (
+        <div
+          className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !savingName) setShowNameModal(false); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[400px] shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[15px] font-bold text-[#1A1635]">Edit full name</div>
+              <button onClick={() => setShowNameModal(false)} className="text-[#8B87A8] leading-none">
+                <X size={18} strokeWidth={2.25} />
+              </button>
+            </div>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Full name</label>
+            <input
+              className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+              value={nameInput}
+              onChange={(e) => { setNameInput(e.target.value); setNameError(null); }}
+              disabled={savingName}
+              autoFocus
+            />
+
+            {nameError && <div className="text-[11px] text-[#DC2626] mt-2">{nameError}</div>}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowNameModal(false)}
+                disabled={savingName}
+                className="px-3 py-2 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitName}
+                disabled={savingName}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingName && <Loader2 size={13} className="animate-spin" />}
+                {savingName ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Email Modal */}
+      {showEmailModal && (
+        <div
+          className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !savingEmail) setShowEmailModal(false); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[400px] shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[15px] font-bold text-[#1A1635]">Edit email</div>
+              <button onClick={() => setShowEmailModal(false)} className="text-[#8B87A8] leading-none">
+                <X size={18} strokeWidth={2.25} />
+              </button>
+            </div>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">New email</label>
+            <input
+              type="email"
+              className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all mb-3"
+              value={emailInput}
+              onChange={(e) => { setEmailInput(e.target.value); setEmailError(null); }}
+              disabled={savingEmail}
+              autoFocus
+            />
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Current password</label>
+            <div className="relative">
+              <input
+                type={showEmailPassword ? "text" : "password"}
+                className="w-full px-3 py-2 pr-9 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+                placeholder="Enter your password"
+                value={emailPassword}
+                onChange={(e) => { setEmailPassword(e.target.value); setEmailError(null); }}
+                disabled={savingEmail}
+              />
+              <button
+                type="button"
+                onClick={() => setShowEmailPassword((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B87A8] hover:text-[#4A4568]"
+                tabIndex={-1}
+              >
+                {showEmailPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-[10.5px] text-[#8B87A8] mt-1">Signed in with Google? Leave this blank.</p>
+
+            {emailError && <div className="text-[11px] text-[#DC2626] mt-2">{emailError}</div>}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowEmailModal(false)}
+                disabled={savingEmail}
+                className="px-3 py-2 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitEmail}
+                disabled={savingEmail}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingEmail && <Loader2 size={13} className="animate-spin" />}
+                {savingEmail ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Base Currency Modal */}
+      {showCurrencyModal && (
+        <div
+          className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !savingCurrency) setShowCurrencyModal(false); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[440px] max-h-[85vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[15px] font-bold text-[#1A1635]">Change base currency</div>
+              <button onClick={() => setShowCurrencyModal(false)} className="text-[#8B87A8] leading-none">
+                <X size={18} strokeWidth={2.25} />
+              </button>
+            </div>
+
+            <div className="relative mb-3">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex">
+                <Search size={14} className="text-[#8B87A8]" />
+              </span>
+              <input
+                className="w-full pl-8 pr-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+                placeholder="Search currency..."
+                value={currencySearch}
+                onChange={(e) => setCurrencySearch(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 max-h-[240px] overflow-y-auto pr-1">
+              {filteredCurrencies.map((c) => (
+                <div
+                  key={c.code}
+                  onClick={() => setSelectedCurrency(c.code)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer text-[12px] transition-all ${
+                    selectedCurrency === c.code
+                      ? "border-[#5B4FE8] bg-[#EEF0FD]"
+                      : "border-[#EAE8FB] hover:bg-[#F8F7FF]"
+                  }`}
+                >
+                  <div>
+                    <div className="font-semibold text-[#1A1635]">{c.code}</div>
+                    <div className="text-[10.5px] text-[#8B87A8]">{c.name}</div>
+                  </div>
+                  {selectedCurrency === c.code && <Check size={14} className="text-[#5B4FE8]" strokeWidth={2.5} />}
+                </div>
+              ))}
+            </div>
+
+            {currencyError && <div className="text-[11px] text-[#DC2626] mt-2">{currencyError}</div>}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowCurrencyModal(false)}
+                disabled={savingCurrency}
+                className="px-3 py-2 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitCurrency}
+                disabled={savingCurrency}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingCurrency && <Loader2 size={13} className="animate-spin" />}
+                {savingCurrency ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Password Modal */}
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget && !savingPassword) setShowPasswordModal(false); }}
+        >
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[400px] shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-[15px] font-bold text-[#1A1635]">Update password</div>
+              <button onClick={() => setShowPasswordModal(false)} className="text-[#8B87A8] leading-none">
+                <X size={18} strokeWidth={2.25} />
+              </button>
+            </div>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Current password</label>
+            <div className="relative mb-3">
+              <input
+                type={showCurrentPw ? "text" : "password"}
+                className="w-full px-3 py-2 pr-9 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+                placeholder="Leave blank if signed in with Google"
+                value={currentPasswordInput}
+                onChange={(e) => { setCurrentPasswordInput(e.target.value); setPasswordError(null); }}
+                disabled={savingPassword}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPw((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B87A8] hover:text-[#4A4568]"
+                tabIndex={-1}
+              >
+                {showCurrentPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">New password</label>
+            <div className="relative mb-3">
+              <input
+                type={showNewPw ? "text" : "password"}
+                className="w-full px-3 py-2 pr-9 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+                placeholder="At least 8 characters"
+                value={newPasswordInput}
+                onChange={(e) => { setNewPasswordInput(e.target.value); setPasswordError(null); }}
+                disabled={savingPassword}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPw((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8B87A8] hover:text-[#4A4568]"
+                tabIndex={-1}
+              >
+                {showNewPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+
+            <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Confirm new password</label>
+            <input
+              type={showNewPw ? "text" : "password"}
+              className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+              value={confirmPasswordInput}
+              onChange={(e) => { setConfirmPasswordInput(e.target.value); setPasswordError(null); }}
+              disabled={savingPassword}
+            />
+
+            {passwordError && <div className="text-[11px] text-[#DC2626] mt-2">{passwordError}</div>}
+
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                disabled={savingPassword}
+                className="px-3 py-2 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitPassword}
+                disabled={savingPassword}
+                className="px-4 py-2 text-[12px] font-semibold text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingPassword && <Loader2 size={13} className="animate-spin" />}
+                {savingPassword ? "Saving…" : "Update password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Delete Account Confirmation Modal */}
       {showDeleteModal && (
         <div
@@ -575,6 +1033,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
