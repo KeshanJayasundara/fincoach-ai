@@ -7,8 +7,9 @@ import { useSession } from "next-auth/react";
 import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
 import { getAIUsage } from "@/actions/ai";
+import { getRoleIcon } from "@/lib/roleIcons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRobot, faBolt, faHandPaper, faBriefcase } from "@fortawesome/free-solid-svg-icons";
+import { faRobot, faBolt, faHandPaper } from "@fortawesome/free-solid-svg-icons";
 
 interface AppTopbarProps {
   onMenuClick: () => void;
@@ -293,6 +294,8 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const { title, showAddButton, addAction } = getPageConfig();
   const addButtonLabel = pathname.includes("/goals") ? "Add Goal" : "Add Transaction";
 
+  const PrimaryRoleIcon = getRoleIcon(primaryRole?.emoji);
+
   return (
     <>
       {/* ── AI Coach header ── */}
@@ -361,7 +364,8 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
                 onClick={() => router.push("/dashboard/settings")}
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 bg-[#EEF0FD] border border-[#C7C3F8] rounded-full cursor-pointer text-[11px] md:text-[11.5px] font-bold text-[#3C3489] whitespace-nowrap shrink-0 ml-1 md:ml-2"
               >
-                {primaryRole.emoji ? primaryRole.emoji : <FontAwesomeIcon icon={faBriefcase} />} {primaryRole.roleName}
+                <PrimaryRoleIcon size={12} strokeWidth={2.5} className="shrink-0" />
+                {primaryRole.roleName}
                 <span className="text-[10px] opacity-70">▾</span>
               </div>
             )}

@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { X, Check } from "lucide-react";
+import { ROLE_ICON_OPTIONS, getRoleIcon } from "@/lib/roleIcons";
+import ProfessionCard from "@/components/onboarding/ProfessionCard";
 
 type Role = {
   id: string;
   roleName: string;
   displayName: string;
-  emoji: string | null;
+  emoji: string | null; // icon key (e.g. "doctor") or "other"
   isPrimary: boolean;
 };
-
-const EMOJI_PRESETS = ["💼", "🏥", "💻", "🎓", "🎨", "⚙️", "📈", "🏪", "⚖️", "📚"];
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -33,7 +34,7 @@ export default function SettingsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formRoleName, setFormRoleName] = useState("");
   const [formDisplayName, setFormDisplayName] = useState("");
-  const [formEmoji, setFormEmoji] = useState("💼");
+  const [formIconKey, setFormIconKey] = useState(ROLE_ICON_OPTIONS[0].key);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -70,9 +71,9 @@ export default function SettingsPage() {
     if (roles.length >= 2) return;
     setModalMode("add");
     setEditingId(null);
-    setFormRoleName("");
+    setFormRoleName(ROLE_ICON_OPTIONS[0].name);
     setFormDisplayName("");
-    setFormEmoji("💼");
+    setFormIconKey(ROLE_ICON_OPTIONS[0].key);
     setFormError(null);
     setModalOpen(true);
   };
@@ -82,7 +83,7 @@ export default function SettingsPage() {
     setEditingId(role.id);
     setFormRoleName(role.roleName);
     setFormDisplayName(role.displayName);
-    setFormEmoji(role.emoji || "💼");
+    setFormIconKey(role.emoji || ROLE_ICON_OPTIONS[0].key);
     setFormError(null);
     setModalOpen(true);
   };
@@ -106,7 +107,7 @@ export default function SettingsPage() {
           body: JSON.stringify({
             roleName: formRoleName.trim(),
             displayName: formDisplayName.trim(),
-            emoji: formEmoji,
+            emoji: formIconKey,
           }),
         });
         if (!res.ok) {
@@ -119,7 +120,7 @@ export default function SettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             displayName: formDisplayName.trim(),
-            emoji: formEmoji,
+            emoji: formIconKey,
           }),
         });
         if (!res.ok) {
@@ -136,6 +137,8 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
+
+  const isOtherSelected = formIconKey === "other";
 
   return (
     <div className="space-y-4">
@@ -203,43 +206,46 @@ export default function SettingsPage() {
               <div className="text-[12px] text-[#8B87A8] px-1 py-2">No roles yet.</div>
             ) : (
               <div className="space-y-1.5">
-                {roles.map((role) => (
-                  <div
-                    key={role.id}
-                    className="bg-white border border-[#EAE8FB] rounded-xl p-3.5 flex items-center gap-2.5 shadow-[0_1px_3px_rgba(91,79,232,0.07)]"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#EEF0FD] flex items-center justify-center text-base flex-shrink-0">
-                      {role.emoji || "💼"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-semibold text-[#1A1635]">
-                        {role.roleName}
-                        {role.isPrimary && (
-                          <span className="inline-flex items-center ml-1.5 px-1.5 py-0.5 bg-[#EEF0FD] text-[#3C3489] text-[9px] font-bold rounded-full">
-                            Primary
-                          </span>
+                {roles.map((role) => {
+                  const RoleIcon = getRoleIcon(role.emoji);
+                  return (
+                    <div
+                      key={role.id}
+                      className="bg-white border border-[#EAE8FB] rounded-xl p-3.5 flex items-center gap-2.5 shadow-[0_1px_3px_rgba(91,79,232,0.07)]"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-[#EEF0FD] flex items-center justify-center flex-shrink-0">
+                        <RoleIcon size={18} className="text-[#5B4FE8]" strokeWidth={2.25} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-[#1A1635]">
+                          {role.roleName}
+                          {role.isPrimary && (
+                            <span className="inline-flex items-center ml-1.5 px-1.5 py-0.5 bg-[#EEF0FD] text-[#3C3489] text-[9px] font-bold rounded-full">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#8B87A8]">{role.displayName}</div>
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => openEditModal(role)}
+                          className="px-3 py-1 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
+                        >
+                          Edit
+                        </button>
+                        {!role.isPrimary && (
+                          <button
+                            onClick={() => archiveRole(role.id)}
+                            className="px-3 py-1 text-[12px] font-medium text-[#991B1B] bg-[#FEE2E2] border border-[#FECACA] rounded-lg hover:bg-[#FECACA] transition-all"
+                          >
+                            Archive
+                          </button>
                         )}
                       </div>
-                      <div className="text-[11px] text-[#8B87A8]">{role.displayName}</div>
                     </div>
-                    <div className="flex gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => openEditModal(role)}
-                        className="px-3 py-1 text-[12px] font-medium text-[#4A4568] bg-white border border-[#EAE8FB] rounded-lg hover:bg-[#F8F7FF] transition-all"
-                      >
-                        Edit
-                      </button>
-                      {!role.isPrimary && (
-                        <button
-                          onClick={() => archiveRole(role.id)}
-                          className="px-3 py-1 text-[12px] font-medium text-[#991B1B] bg-[#FEE2E2] border border-[#FECACA] rounded-lg hover:bg-[#FECACA] transition-all"
-                        >
-                          Archive
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -372,41 +378,46 @@ export default function SettingsPage() {
           className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="bg-white rounded-2xl p-5 w-full max-w-[420px] shadow-2xl">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[480px] max-h-[85vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="text-[15px] font-bold text-[#1A1635]">
                 {modalMode === "add" ? "Add a role" : "Edit role"}
               </div>
-              <button onClick={closeModal} className="text-[#8B87A8] text-[18px] leading-none">✕</button>
+              <button onClick={closeModal} className="text-[#8B87A8] leading-none">
+                <X size={18} strokeWidth={2.25} />
+              </button>
             </div>
 
-            {/* Emoji picker */}
+            {/* Icon picker — same ProfessionCard used in onboarding, includes "Other" */}
             <div className="mb-3">
-              <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Icon</label>
-              <div className="flex flex-wrap gap-1.5">
-                {EMOJI_PRESETS.map((em) => (
-                  <button
-                    key={em}
-                    onClick={() => setFormEmoji(em)}
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center text-base border transition-all ${
-                      formEmoji === em ? "border-[#5B4FE8] bg-[#EEF0FD]" : "border-[#EAE8FB] bg-white hover:bg-[#F8F7FF]"
-                    }`}
-                  >
-                    {em}
-                  </button>
+              <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Choose an icon</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {ROLE_ICON_OPTIONS.map(({ key, icon, name }) => (
+                  <ProfessionCard
+                    key={key}
+                    icon={icon}
+                    name={name}
+                    isSelected={formIconKey === key}
+                    onClick={() => {
+                      setFormIconKey(key);
+                      if (key !== "other") setFormRoleName(name);
+                      else setFormRoleName("");
+                    }}
+                  />
                 ))}
               </div>
             </div>
 
-            {/* Role name - only editable when adding */}
-            {modalMode === "add" && (
+            {/* Custom role name — shown only when "Other" is selected, and only in add mode */}
+            {isOtherSelected && modalMode === "add" && (
               <div className="mb-3">
-                <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Role name</label>
+                <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Custom role name</label>
                 <input
                   className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
-                  placeholder="e.g. Freelancer"
+                  placeholder="e.g. Photographer, Pilot, Chef..."
                   value={formRoleName}
                   onChange={(e) => setFormRoleName(e.target.value)}
+                  autoFocus
                 />
               </div>
             )}
