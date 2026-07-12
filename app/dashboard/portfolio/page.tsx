@@ -5,7 +5,9 @@ import { getAssets } from "@/actions/portfolio";
 import type { Asset } from "@prisma/client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faCoins,
+  faBitcoin,
+} from "@fortawesome/free-brands-svg-icons";
+import {
   faChartLine,
   faBuildingColumns,
   faGem,
@@ -15,7 +17,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 
 // ── category → icon/color mapping (display only, not stored in DB) ──
 const CATEGORY_STYLE: Record<string, { icon: IconDefinition; bg: string; textColor: string; barColor: string }> = {
-  "Crypto":                { icon: faCoins,          bg: "#FEF3C7", textColor: "text-amber-600",  barColor: "#F59E0B" },
+  "Crypto":                { icon: faBitcoin,        bg: "#FEF3C7", textColor: "text-amber-600",  barColor: "#F59E0B" },
   "Stock / ETF":            { icon: faChartLine,       bg: "#DBEAFE", textColor: "text-blue-600",   barColor: "#3B82F6" },
   "Bank / Fixed Deposit":    { icon: faBuildingColumns, bg: "#DCFCE7", textColor: "text-green-600",  barColor: "#22C55E" },
   "Commodity":               { icon: faGem,             bg: "#F3E8FF", textColor: "text-purple-600", barColor: "#EC4899" },
