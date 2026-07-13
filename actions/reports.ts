@@ -48,8 +48,6 @@ async function buildReport(userId: string, monthStr?: string) {
 
   const currency = user.preferredCurrency || "USD";
 
-  // Use amountBase (normalized to preferredCurrency), not amount,
-  // since transactions may be logged in different currencies.
   const totalIncome = monthlyTransactions
     .filter(t => t.type === "income")
     .reduce((s, t) => s + t.amountBase, 0);
@@ -91,7 +89,6 @@ async function buildReport(userId: string, monthStr?: string) {
     })
     .join("");
 
-  // Goals progress — real data from the Goal model
   const goalRows = goals
     .map(g => {
       const pct = g.targetAmount > 0 ? Math.min(100, (g.currentAmount / g.targetAmount) * 100) : 0;
@@ -110,7 +107,6 @@ async function buildReport(userId: string, monthStr?: string) {
     })
     .join("");
 
-  // Simple rule-based insights derived from real numbers (no hardcoding)
   const insights: string[] = [];
   const topCategory = sortedCategories[0];
   if (topCategory) {
@@ -306,8 +302,18 @@ async function buildReport(userId: string, monthStr?: string) {
 /**
  * Called by the "Send Combined Report" button on the dashboard.
  * Session-gated — always logs sentVia: "manual".
+ *
+ * NOTE: for expected/handled outcomes (already sent, send failed) we
+ * RETURN a structured result instead of throwing. In production,
+ * Next.js strips the message off errors thrown inside Server Actions
+ * and only forwards a generic digest error to the client — so a
+ * thrown "already sent" message would show up in the browser as
+ * "An error occurred in the Server Components render...". Returning
+ * a plain object sidesteps that entirely.
  */
-export async function generateMonthlyReport(monthStr?: string) {
+export async function generateMonthlyReport(
+  monthStr?: string
+): Promise<{ success: boolean; error?: string }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
@@ -317,14 +323,21 @@ export async function generateMonthlyReport(monthStr?: string) {
     where: { userId: session.user.id, month: monthKey, type: "combined" },
   });
   if (existing) {
-    throw new Error(
-      `A report for this month was already sent (${
+    return {
+      success: false,
+      error: `A report for this month was already sent (${
         existing.sentVia === "auto" ? "auto-sent on the last day" : "sent manually"
-      }).`
-    );
+      }).`,
+    };
   }
 
-  const success = await sendMonthlyReport(email, reportHtml);
+  let success = false;
+  try {
+    success = await sendMonthlyReport(email, reportHtml);
+  } catch (err) {
+    console.error("sendMonthlyReport failed:", err);
+    return { success: false, error: "Failed to send the report email. Please try again." };
+  }
 
   if (success) {
     await prisma.reportLog.create({
@@ -339,7 +352,10 @@ export async function generateMonthlyReport(monthStr?: string) {
   }
 
   revalidatePath("/dashboard/reports");
-  return { success };
+  return {
+    success,
+    error: success ? undefined : "Failed to send the report email. Please try again.",
+  };
 }
 
 /**
@@ -356,7 +372,14 @@ export async function generateMonthlyReportForUser(userId: string) {
   if (existing) return { success: false, reason: "already sent" };
 
   const { reportHtml, email } = await buildReport(userId);
-  const success = await sendMonthlyReport(email, reportHtml);
+
+  let success = false;
+  try {
+    success = await sendMonthlyReport(email, reportHtml);
+  } catch (err) {
+    console.error(`sendMonthlyReport failed for user ${userId}:`, err);
+    return { success: false, reason: "send failed" };
+  }
 
   if (success) {
     await prisma.reportLog.create({
