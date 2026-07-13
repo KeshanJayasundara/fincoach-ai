@@ -1,27 +1,21 @@
 "use server";
 
-import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 
-export interface CreateAssetInput {
+export interface AssetInput {
   name: string;
   category: string;
   units?: string;
   value: number;
-  costBasis?: number;
 }
 
-export async function createAsset(data: CreateAssetInput) {
+export async function createAsset(data: AssetInput) {
   const session = await auth();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { preferredCurrency: true },
-  });
 
   const asset = await prisma.asset.create({
     data: {
@@ -30,8 +24,8 @@ export async function createAsset(data: CreateAssetInput) {
       category: data.category,
       units: data.units || null,
       value: data.value,
-      costBasis: data.costBasis ?? data.value, // no P&L until a cost basis is set
-      currency: user?.preferredCurrency || "USD",
+      costBasis: data.value, // starting point: 0% gain/loss until updated
+      currency: session.user.currency || "USD",
     },
   });
 
@@ -45,12 +39,10 @@ export async function getAssets() {
     throw new Error("Not authenticated");
   }
 
-  const assets = await prisma.asset.findMany({
+  return prisma.asset.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
   });
-
-  return assets;
 }
 
 export async function deleteAsset(assetId: string) {
@@ -60,8 +52,31 @@ export async function deleteAsset(assetId: string) {
   }
 
   await prisma.asset.deleteMany({
-    where: { id: assetId, userId: session.user.id }, // scoped to this user only
+    where: { id: assetId, userId: session.user.id }, // scoped to owner, can't delete others' assets
   });
 
   revalidatePath("/dashboard/portfolio");
+}
+
+export async function updateAssetValue(assetId: string, newValue: number) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const existing = await prisma.asset.findFirst({
+    where: { id: assetId, userId: session.user.id },
+  });
+  if (!existing) throw new Error("Asset not found");
+
+  const asset = await prisma.asset.update({
+    where: { id: assetId },
+    data: {
+      costBasis: existing.value, // shift current value into costBasis before overwriting
+      value: newValue,
+    },
+  });
+
+  revalidatePath("/dashboard/portfolio");
+  return asset;
 }

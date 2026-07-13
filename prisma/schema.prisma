@@ -6,60 +6,57 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── USER & AUTH ─────────────────────────
 model User {
-  id                String   @id @default(cuid())
+  id                String            @id @default(cuid())
   name              String?
-  email             String   @unique
+  email             String            @unique
   emailVerified     DateTime?
   password          String?
   image             String?
-  plan              String   @default("free")
-
-  // Profile
+  plan              String            @default("free")
   primaryProfession String?
   secondaryRoles    String[]
   incomeType        String?
-  preferredCurrency String   @default("USD")
-  onboardingDone    Boolean  @default(false)
+  preferredCurrency String            @default("USD")
+  onboardingDone    Boolean           @default(false)
+  aiQueriesUsed     Int               @default(0)
+  aiQueryMonth      String            @default("")
+  autoReportEnabled Boolean           @default(true)
 
-  // Forgot Password Fields
+  // Notification preferences (NEW — not yet in DB, migration will add these)
+  spendingAlerts    Boolean           @default(true)
+  goalMilestones    Boolean           @default(false)
+  weeklyDigest      Boolean           @default(false)
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   resetToken        String?
   resetTokenExpiry  DateTime?
-
-  // AI & Reports
-  aiQueriesUsed     Int      @default(0)
-  aiQueryMonth      String   @default("")
-  autoReportEnabled Boolean  @default(true)
-
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
   accounts          Account[]
-  sessions          Session[]
-  transactions      Transaction[]
+  assets            Asset[]
+  chatMessages      ChatMessage[]
   goals             Goal[]
   reportLogs        ReportLog[]
+  sessions          Session[]
+  transactions      Transaction[]
   userRoles         UserRole[]
   typeHistory       UserTypeHistory[]
-  chatMessages      ChatMessage[]
-  assets            Asset[]
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -76,21 +73,21 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
-// ─── ROLES & HISTORY ─────────────────────
 model UserRole {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   roleName    String
   displayName String
   emoji       String?
-  isPrimary   Boolean  @default(false)
-  status      String   @default("ACTIVE")
+  isPrimary   Boolean   @default(false)
+  status      String    @default("ACTIVE")
   archivedAt  DateTime?
-  createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleName])
 }
@@ -105,76 +102,71 @@ model UserTypeHistory {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ─── TRANSACTIONS ────────────────────────
 model Transaction {
-  id            String   @id @default(cuid())
-  userId        String
-  type          String   // "income" or "expense"
-  amount        Float
-  currency      String   @default("USD")
-  amountBase    Float    // converted to preferred currency
-  category      String
-  description   String?
-  date          DateTime @default(now())
-  source        String   @default("MANUAL")
-  importBatch   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// ─── GOALS ───────────────────────────────
-model Goal {
-  id            String   @id @default(cuid())
-  userId        String
-  name          String
-  targetAmount  Float
-  currentAmount Float    @default(0)
-  currency      String   @default("USD")
-  deadline      DateTime?
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// ─── REPORTS ─────────────────────────────
-model ReportLog {
   id          String   @id @default(cuid())
   userId      String
-  month       String   // YYYY-MM
-  type        String   // "combined"
-  sentVia     String   @default("manual") // "manual" | "auto"
-  sentAt      DateTime @default(now())
-  emailSentTo String?
+  type        String
+  amount      Float
+  currency    String   @default("USD")
+  amountBase  Float
+  category    String
+  description String?
+  date        DateTime @default(now())
+  source      String   @default("MANUAL")
+  importBatch String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ─── AI CHAT HISTORY ─────────────────────
+model Goal {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  currency      String    @default("USD")
+  deadline      DateTime?
+  status        String    @default("active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  category  String
+  units     String?
+  value     Float
+  costBasis Float
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ReportLog {
+  id          String   @id @default(cuid())
+  userId      String
+  month       String
+  type        String
+  sentAt      DateTime @default(now())
+  emailSentTo String?
+  sentVia     String   @default("manual")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model ChatMessage {
   id        String   @id @default(cuid())
   userId    String
-  role      String   // "user" or "assistant"
-  content   String   @db.Text
+  role      String
+  content   String
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
-}
-
-// ─── PORTFOLIO ASSETS ────────────────────
-model Asset {
-  id            String   @id @default(cuid())
-  userId        String
-  name          String
-  category      String   // "Crypto" | "Stock / ETF" | "Bank / Fixed Deposit" | "Commodity" | "Other"
-  units         String?  // display text only, e.g. "0.0015 BTC", "5 units"
-  value         Float    // current value, in user's preferredCurrency
-  costBasis     Float    // original invested value — used to calc P&L (defaults to value if not given)
-  currency      String   @default("USD")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }

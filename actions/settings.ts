@@ -121,6 +121,67 @@ export async function updatePassword(currentPassword: string, newPassword: strin
   return { success: true };
 }
 
+export interface NotificationSettings {
+  monthlyReport: boolean;
+  goalMilestones: boolean;
+  weeklyDigest: boolean;
+}
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      autoReportEnabled: true,
+      goalMilestones: true,
+      weeklyDigest: true,
+    },
+  });
+  if (!user) throw new Error("User not found");
+
+  return {
+    monthlyReport: user.autoReportEnabled,
+    goalMilestones: user.goalMilestones,
+    weeklyDigest: user.weeklyDigest,
+  };
+}
+
+export async function updateNotificationSetting(
+  key: keyof NotificationSettings,
+  value: boolean
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  let data: Record<string, boolean>;
+  switch (key) {
+    case "monthlyReport":
+      data = { autoReportEnabled: value };
+      break;
+    case "goalMilestones":
+      data = { goalMilestones: value };
+      break;
+    case "weeklyDigest":
+      data = { weeklyDigest: value };
+      break;
+    default:
+      throw new Error("Unknown notification setting.");
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data,
+  });
+
+  return { success: true };
+}
+
 export async function deleteAccount(password: string) {
   const session = await auth();
   if (!session?.user?.id) {

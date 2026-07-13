@@ -11,6 +11,9 @@ import {
   updateEmail,
   updateCurrency,
   updatePassword,
+  getNotificationSettings,
+  updateNotificationSetting,
+  type NotificationSettings,
 } from "@/actions/settings";
 import { ALL_CURRENCIES, getCurrencyDisplayName } from "@/lib/currencies";
 
@@ -31,12 +34,20 @@ export default function SettingsPage() {
     window.setTimeout(() => setToast(null), 3000);
   };
 
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState<NotificationSettings>({
     monthlyReport: true,
-    spendingAlerts: true,
     goalMilestones: false,
     weeklyDigest: false,
   });
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [savingKey, setSavingKey] = useState<keyof NotificationSettings | null>(null);
+
+  useEffect(() => {
+    getNotificationSettings()
+      .then(setNotifications)
+      .catch(() => showToast("Couldn't load notification settings"))
+      .finally(() => setLoadingNotifications(false));
+  }, []);
 
   // ── Profile edit modals ──
   const [showNameModal, setShowNameModal] = useState(false);
@@ -88,8 +99,19 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const toggleNotification = (key: keyof typeof notifications) => {
-    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleNotification = async (key: keyof NotificationSettings) => {
+    const newValue = !notifications[key];
+    setNotifications((prev) => ({ ...prev, [key]: newValue }));
+    setSavingKey(key);
+    try {
+      await updateNotificationSetting(key, newValue);
+    } catch {
+      // Revert on failure so the switch reflects what's actually saved.
+      setNotifications((prev) => ({ ...prev, [key]: !newValue }));
+      showToast("Failed to save. Please try again.");
+    } finally {
+      setSavingKey(null);
+    }
   };
 
   const loadRoles = () => {
@@ -484,6 +506,13 @@ export default function SettingsPage() {
           {/* Notifications Section */}
           <div>
             <div className="text-[10.5px] font-bold text-[#8B87A8] uppercase tracking-[0.08em] mb-2">Notifications</div>
+            {loadingNotifications ? (
+              <div className="bg-white border border-[#EAE8FB] rounded-xl overflow-hidden">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-[54px] border-b border-[#EAE8FB] last:border-b-0 animate-pulse bg-[#F8F7FF]" />
+                ))}
+              </div>
+            ) : (
             <div className="bg-white border border-[#EAE8FB] rounded-xl shadow-[0_1px_3px_rgba(91,79,232,0.07)] overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
                 <div>
@@ -492,21 +521,10 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => toggleNotification("monthlyReport")}
-                  className={`w-9 h-5 rounded-full relative transition-all ${notifications.monthlyReport ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
+                  disabled={savingKey === "monthlyReport"}
+                  className={`w-9 h-5 rounded-full relative transition-all disabled:opacity-50 ${notifications.monthlyReport ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
                   <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.monthlyReport ? "left-[18px]" : "left-0.5"}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
-                <div>
-                  <div className="text-[13px] font-semibold text-[#1A1635]">Spending alerts</div>
-                  <div className="text-[11px] text-[#8B87A8]">When spending exceeds budget</div>
-                </div>
-                <button
-                  onClick={() => toggleNotification("spendingAlerts")}
-                  className={`w-9 h-5 rounded-full relative transition-all ${notifications.spendingAlerts ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
-                >
-                  <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.spendingAlerts ? "left-[18px]" : "left-0.5"}`} />
                 </button>
               </div>
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
@@ -516,7 +534,8 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => toggleNotification("goalMilestones")}
-                  className={`w-9 h-5 rounded-full relative transition-all ${notifications.goalMilestones ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
+                  disabled={savingKey === "goalMilestones"}
+                  className={`w-9 h-5 rounded-full relative transition-all disabled:opacity-50 ${notifications.goalMilestones ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
                   <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.goalMilestones ? "left-[18px]" : "left-0.5"}`} />
                 </button>
@@ -528,12 +547,14 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => toggleNotification("weeklyDigest")}
-                  className={`w-9 h-5 rounded-full relative transition-all ${notifications.weeklyDigest ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
+                  disabled={savingKey === "weeklyDigest"}
+                  className={`w-9 h-5 rounded-full relative transition-all disabled:opacity-50 ${notifications.weeklyDigest ? "bg-[#5B4FE8]" : "bg-[#EAE8FB]"}`}
                 >
                   <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${notifications.weeklyDigest ? "left-[18px]" : "left-0.5"}`} />
                 </button>
               </div>
             </div>
+            )}
           </div>
 
           {/* Plan & Billing Section */}
