@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import * as XLSX from "xlsx";
 import {
   X, PenLine, Camera, Upload, ChevronDown, Check,
   Loader2, Search, RotateCcw, Sparkles, AlertCircle,
-  Edit3, Save,
+  Edit3, Save, Trash2, FileWarning,
 } from "lucide-react";
-import { addTransaction } from "@/actions/transactions";
+import { addTransaction, importTransactions } from "@/actions/transactions";
 import {
   TransactionType,
   TransactionCategory,
@@ -976,8 +977,131 @@ function ScanTab({
 }
 
 /* ─────────────────────────────────────────────────────── */
-/*  IMPORT TAB                                             */
+/*  IMPORT TAB — real file parsing + editable preview       */
 /* ─────────────────────────────────────────────────────── */
+
+interface ParsedRow {
+  id: string;
+  date: string;               // yyyy-mm-dd
+  amount: string;              // kept as string for the editable input
+  description: string;
+  category: TransactionCategory | "";
+  type: TransactionType;
+  currency: Currency;
+  include: boolean;
+}
+
+// Finds a column header matching any of the given candidate names
+// (case-insensitive, exact match first, then partial/contains match).
+function findKey(keys: string[], candidates: string[]): string | null {
+  const normalised = keys.map((k) => ({ orig: k, norm: k.trim().toLowerCase() }));
+  for (const c of candidates) {
+    const exact = normalised.find((k) => k.norm === c);
+    if (exact) return exact.orig;
+  }
+  for (const c of candidates) {
+    const partial = normalised.find((k) => k.norm.includes(c));
+    if (partial) return partial.orig;
+  }
+  return null;
+}
+
+// Strips currency symbols/commas/whitespace and parses a number.
+// Handles values like "LKR 12,500.00", "-2,000", or a raw number.
+function parseAmountValue(raw: any): number {
+  if (typeof raw === "number") return raw;
+  if (raw === null || raw === undefined || raw === "") return 0;
+  const cleaned = String(raw).replace(/[^0-9.\-]/g, "");
+  const n = parseFloat(cleaned);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+// Normalises a cell value into a yyyy-mm-dd string.
+// Handles JS Date objects (from cellDates:true), Excel serial numbers,
+// and plain date strings.
+function parseDateValue(raw: any): string {
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return raw.toISOString().slice(0, 10);
+  }
+  if (typeof raw === "number") {
+    const parsed = XLSX.SSF.parse_date_code(raw);
+    if (parsed) {
+      return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+    }
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  return "";
+}
+
+// Reads a CSV/XLS/XLSX file and returns normalised, best-effort rows.
+// Column headers are auto-detected from common variants used by
+// bank/expense-tracker exports.
+async function parseImportFile(
+  file: File,
+): Promise<{ rows: ParsedRow[]; skipped: number }> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return { rows: [], skipped: 0 };
+
+  const sheet = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+
+  const rows: ParsedRow[] = [];
+  let skipped = 0;
+
+  raw.forEach((r, idx) => {
+    const keys = Object.keys(r);
+    const dateKey   = findKey(keys, ["date", "transaction date", "posted date", "value date"]);
+    const descKey   = findKey(keys, ["description", "narration", "details", "particulars", "memo", "remarks"]);
+    const catKey    = findKey(keys, ["category", "type of expense"]);
+    const debitKey  = findKey(keys, ["debit", "withdrawal", "money out", "dr"]);
+    const creditKey = findKey(keys, ["credit", "deposit", "money in", "cr"]);
+    const amountKey = findKey(keys, ["amount", "value"]);
+
+    const date = dateKey ? parseDateValue(r[dateKey]) : "";
+
+    let signedAmount = 0;
+    if (debitKey || creditKey) {
+      const debit  = debitKey  ? parseAmountValue(r[debitKey])  : 0;
+      const credit = creditKey ? parseAmountValue(r[creditKey]) : 0;
+      signedAmount = credit > 0 ? credit : -debit;
+    } else if (amountKey) {
+      signedAmount = parseAmountValue(r[amountKey]);
+    }
+
+    // Skip rows we can't make sense of at all (no date or zero amount).
+    if (!date || signedAmount === 0) {
+      skipped++;
+      return;
+    }
+
+    const rawCategory     = catKey ? String(r[catKey]) : "";
+    const matchedCategory = matchCategory(rawCategory);
+    const type = matchedCategory
+      ? inferType(matchedCategory)
+      : signedAmount < 0
+        ? TransactionType.Expense
+        : TransactionType.Income;
+
+    rows.push({
+      id:          `row-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      date,
+      amount:      Math.abs(signedAmount).toFixed(2),
+      description: descKey ? String(r[descKey]).slice(0, 120) : "",
+      category:    matchedCategory,
+      type,
+      currency:    Currency.LKR,
+      include:     true,
+    });
+  });
+
+  return { rows, skipped };
+}
+
 function ImportTab({
   onClose,
   onSuccess,
@@ -985,30 +1109,105 @@ function ImportTab({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
+  type Stage = "select" | "parsing" | "preview" | "saving" | "done" | "error";
+
+  const [stage, setStage]         = useState<Stage>("select");
   const [file, setFile]           = useState<File | null>(null);
   const [dragging, setDragging]   = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [imported, setImported]   = useState(false);
+  const [rows, setRows]           = useState<ParsedRow[]>([]);
+  const [skipped, setSkipped]     = useState(0);
+  const [errMsg, setErrMsg]       = useState("");
+  const [savedCount, setSavedCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (f: File) => {
+    setFile(f);
+    setStage("parsing");
+    setErrMsg("");
+    try {
+      const { rows: parsed, skipped: sk } = await parseImportFile(f);
+      if (parsed.length === 0) {
+        setErrMsg(
+          "No valid transactions found in this file. Make sure it has recognisable columns like date, amount, and description.",
+        );
+        setStage("error");
+        return;
+      }
+      setRows(parsed);
+      setSkipped(sk);
+      setStage("preview");
+    } catch (e: any) {
+      setErrMsg(
+        e.message || "Failed to read this file. Make sure it's a valid CSV or Excel file.",
+      );
+      setStage("error");
+    }
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const f = e.dataTransfer.files?.[0];
-    if (f) setFile(f);
+    if (f) handleFile(f);
   }, []);
 
-  const handleImport = async () => {
-    if (!file) return;
-    setImporting(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    setImporting(false);
-    setImported(true);
+  const updateRow = (id: string, patch: Partial<ParsedRow>) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  };
+
+  const removeRow = (id: string) => {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const toggleAll = (include: boolean) => {
+    setRows((prev) => prev.map((r) => ({ ...r, include })));
+  };
+
+  const includedRows = rows.filter((r) => r.include);
+  const readyRows     = includedRows.filter((r) => r.category && parseFloat(r.amount) > 0);
+  const needsAttention = includedRows.length - readyRows.length;
+
+  const handleSaveAll = async () => {
+    setStage("saving");
+    setErrMsg("");
+    try {
+      const payload = readyRows.map((r) => ({
+        type:        r.type,
+        amount:      parseFloat(r.amount),
+        currency:    r.currency,
+        category:    r.category as TransactionCategory,
+        description: r.description,
+        date:        r.date,
+      }));
+
+      if (payload.length === 0) {
+        setErrMsg("No valid rows to import. Assign a category and amount to at least one row.");
+        setStage("preview");
+        return;
+      }
+
+      const result = await importTransactions(payload);
+      setSavedCount(result.count);
+      setStage("done");
+    } catch (e: any) {
+      setErrMsg(e.message || "Failed to save transactions.");
+      setStage("preview");
+    }
+  };
+
+  const reset = () => {
+    setStage("select");
+    setFile(null);
+    setRows([]);
+    setSkipped(0);
+    setErrMsg("");
+    setSavedCount(0);
   };
 
   return (
     <div className="p-5 space-y-4">
-      {!imported ? (
+      {/* ── SELECT ── */}
+      {stage === "select" && (
         <>
           <div
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -1018,8 +1217,6 @@ function ImportTab({
             className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
               dragging
                 ? "border-[#5B4FE8] bg-[#F0EEFF]"
-                : file
-                ? "border-[#9B93F5] bg-[#F8F7FF]"
                 : "border-[#C7C3F8] hover:border-[#5B4FE8] hover:bg-[#F8F7FF]"
             }`}
           >
@@ -1027,21 +1224,10 @@ function ImportTab({
               <Upload size={24} className="text-[#5B4FE8]" />
             </div>
             <div className="text-center">
-              {file ? (
-                <>
-                  <div className="text-[13px] font-bold text-[#5B4FE8]">{file.name}</div>
-                  <div className="text-[11px] text-[#8B87A8] mt-0.5">
-                    {(file.size / 1024).toFixed(1)} KB · Click to change
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[13px] font-bold text-[#1A1635]">Drop your file here</div>
-                  <div className="text-[11px] text-[#8B87A8] mt-0.5">
-                    or click to browse · CSV, XLS, XLSX
-                  </div>
-                </>
-              )}
+              <div className="text-[13px] font-bold text-[#1A1635]">Drop your file here</div>
+              <div className="text-[11px] text-[#8B87A8] mt-0.5">
+                or click to browse · CSV, XLS, XLSX
+              </div>
             </div>
           </div>
           <input
@@ -1049,7 +1235,7 @@ function ImportTab({
             type="file"
             accept=".csv,.xls,.xlsx"
             className="hidden"
-            onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])}
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
 
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3">
@@ -1067,10 +1253,10 @@ function ImportTab({
               ))}
             </div>
             <p className="text-[10.5px] text-[#8B87A8] mt-2">
-              Bank exports from most Sri Lankan banks are supported. Column
-              headers like{" "}
-              <span className="font-mono">date, amount, description</span> are
-              auto-detected.
+              Column headers like{" "}
+              <span className="font-mono">date, amount, description, category</span>{" "}
+              (or <span className="font-mono">debit/credit</span>) are auto-detected.
+              You&apos;ll get to review and fix everything before it&apos;s saved.
             </p>
           </div>
 
@@ -1081,45 +1267,195 @@ function ImportTab({
             >
               Cancel
             </button>
-            <button
-              onClick={handleImport}
-              disabled={!file || importing}
-              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {importing ? (
-                <><Loader2 size={13} className="animate-spin" /> Importing…</>
-              ) : (
-                <><Upload size={13} /> Import File</>
-              )}
-            </button>
           </div>
         </>
-      ) : (
+      )}
+
+      {/* ── PARSING ── */}
+      {stage === "parsing" && (
+        <div className="flex flex-col items-center justify-center gap-3 py-14">
+          <Loader2 size={22} className="animate-spin text-[#5B4FE8]" />
+          <div className="text-[13px] font-semibold text-[#1A1635]">Reading your file…</div>
+          <p className="text-[11px] text-[#8B87A8]">{file?.name}</p>
+        </div>
+      )}
+
+      {/* ── ERROR ── */}
+      {stage === "error" && (
+        <>
+          <div className="bg-[#FEE2E2] border border-[#FCA5A5] rounded-xl px-4 py-3 flex items-start gap-2.5">
+            <FileWarning size={14} className="text-[#DC2626] shrink-0 mt-0.5" />
+            <div>
+              <div className="text-[12px] font-semibold text-[#7F1D1D]">Import failed</div>
+              <div className="text-[11px] text-[#991B1B] mt-0.5">{errMsg}</div>
+            </div>
+          </div>
+          <button
+            onClick={reset}
+            className="w-full py-2.5 text-[12px] font-semibold text-[#5B4FE8] border border-[#C7C3F8] rounded-lg hover:bg-[#F8F7FF] transition-colors flex items-center justify-center gap-2"
+          >
+            <RotateCcw size={12} /> Try a different file
+          </button>
+        </>
+      )}
+
+      {/* ── PREVIEW ── */}
+      {stage === "preview" && (
+        <div className="space-y-3">
+          <div className="bg-[#EEF0FD] border border-[#C7C3F8] rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-semibold text-[#3C3489]">
+                {rows.length} transaction{rows.length !== 1 ? "s" : ""} detected
+              </span>
+              {skipped > 0 && (
+                <span className="text-[10.5px] text-[#8B87A8]">
+                  {skipped} row{skipped !== 1 ? "s" : ""} skipped
+                </span>
+              )}
+            </div>
+            {needsAttention > 0 && (
+              <p className="text-[10.5px] text-[#7F1D1D] mt-1">
+                {needsAttention} row{needsAttention !== 1 ? "s" : ""} need a category before they can be saved.
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-[#8B87A8] px-0.5">
+            <span>{includedRows.length} of {rows.length} selected</span>
+            <div className="flex gap-3">
+              <button onClick={() => toggleAll(true)} className="font-semibold text-[#5B4FE8] hover:underline">
+                Select all
+              </button>
+              <button onClick={() => toggleAll(false)} className="font-semibold text-[#8B87A8] hover:underline">
+                Deselect all
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-[#EAE8FB] rounded-xl divide-y divide-[#EAE8FB] max-h-[340px] overflow-y-auto">
+            {rows.map((row) => {
+              const categories =
+                row.type === TransactionType.Income ? IncomeCategoriesList : ExpenseCategoriesList;
+              const needsCategory = !row.category;
+
+              return (
+                <div key={row.id} className={`p-3 space-y-2 ${!row.include ? "opacity-50" : ""}`}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={row.include}
+                      onChange={(e) => updateRow(row.id, { include: e.target.checked })}
+                      className="shrink-0 accent-[#5B4FE8]"
+                    />
+                    <input
+                      type="date"
+                      value={row.date}
+                      onChange={(e) => updateRow(row.id, { date: e.target.value })}
+                      className="text-[11px] border border-[#D1CCFF] rounded-lg px-2 py-1.5 outline-none focus:border-[#5B4FE8] text-[#4A4568]"
+                    />
+                    <div className="flex bg-[#F8F7FF] rounded-lg p-0.5 gap-0.5">
+                      {[TransactionType.Expense, TransactionType.Income].map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => updateRow(row.id, { type: t, category: "" })}
+                          className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                            row.type === t
+                              ? t === TransactionType.Expense
+                                ? "bg-[#FEE2E2] text-[#DC2626]"
+                                : "bg-[#DCFCE7] text-[#16A34A]"
+                              : "text-[#8B87A8]"
+                          }`}
+                        >
+                          {t === TransactionType.Expense ? "Exp" : "Inc"}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      value={row.amount}
+                      onChange={(e) => updateRow(row.id, { amount: e.target.value })}
+                      className="w-20 text-[11px] font-semibold border border-[#D1CCFF] rounded-lg px-2 py-1.5 outline-none focus:border-[#5B4FE8] text-[#1A1635] ml-auto"
+                    />
+                    <button
+                      onClick={() => removeRow(row.id)}
+                      className="shrink-0 p-1.5 text-[#8B87A8] hover:text-red-600 rounded-lg hover:bg-[#FEF2F2] transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      value={row.category}
+                      onChange={(e) => updateRow(row.id, { category: e.target.value as TransactionCategory })}
+                      className={`flex-1 text-[11px] border rounded-lg px-2 py-1.5 outline-none bg-white ${
+                        needsCategory ? "border-[#FCA5A5] text-[#DC2626]" : "border-[#D1CCFF] text-[#4A4568]"
+                      }`}
+                    >
+                      <option value="">Select category…</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={row.description}
+                      onChange={(e) => updateRow(row.id, { description: e.target.value })}
+                      placeholder="Description"
+                      className="flex-1 text-[11px] border border-[#D1CCFF] rounded-lg px-2 py-1.5 outline-none focus:border-[#5B4FE8] text-[#1A1635] placeholder:text-[#C4C0DC]"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {errMsg && (
+            <div className="text-[11px] text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">
+              {errMsg}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={reset}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-[#8B87A8] border border-[#D1CCFF] rounded-lg hover:border-[#C7C3F8] transition-colors"
+            >
+              Start over
+            </button>
+            <button
+              onClick={handleSaveAll}
+              disabled={readyRows.length === 0}
+              className="flex-1 py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Upload size={13} /> Import {readyRows.length} transaction{readyRows.length !== 1 ? "s" : ""}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SAVING ── */}
+      {stage === "saving" && (
+        <div className="flex flex-col items-center justify-center gap-3 py-14">
+          <Loader2 size={22} className="animate-spin text-[#5B4FE8]" />
+          <div className="text-[13px] font-semibold text-[#1A1635]">Saving transactions…</div>
+        </div>
+      )}
+
+      {/* ── DONE ── */}
+      {stage === "done" && (
         <div className="space-y-4">
           <div className="bg-[#DCFCE7] border border-[#BBF7D0] rounded-xl px-4 py-3 flex items-center gap-2">
             <Check size={14} className="text-[#16A34A]" />
             <span className="text-[12px] font-semibold text-[#14532D]">
-              File imported successfully!
+              {savedCount} transaction{savedCount !== 1 ? "s" : ""} imported successfully!
             </span>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">File</span>
-              <span className="font-bold text-[#1A1635] truncate max-w-180px">{file?.name}</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Transactions found</span>
-              <span className="font-bold text-[#1A1635]">24 rows</span>
-            </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-[#8B87A8]">Date range</span>
-              <span className="font-bold text-[#1A1635]">Jan – May 2025</span>
-            </div>
+          <div className="flex justify-between text-[12px]">
+            <span className="text-[#8B87A8]">File</span>
+            <span className="font-bold text-[#1A1635] truncate max-w-180px">{file?.name}</span>
           </div>
-          <p className="text-[11px] text-[#8B87A8]">
-            Full CSV import processing is coming soon. The preview shows
-            detected data from your file.
-          </p>
           <button
             onClick={() => { onSuccess?.(); onClose(); }}
             className="w-full py-2.5 text-[12px] font-semibold text-white bg-[#5B4FE8] hover:bg-[#7B72EC] rounded-lg transition-colors"

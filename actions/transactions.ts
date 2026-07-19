@@ -1,15 +1,20 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { TransactionType, TransactionCategory, TransactionSource, Currency } from "@/lib/enums";
+import {
+  TransactionType,
+  TransactionCategory,
+  TransactionSource,
+  Currency,
+} from "@/lib/enums";
 
 export async function addTransaction(data: {
-  type: TransactionType;                  // "income" | "expense" වෙනුවට enum
+  type: TransactionType;                  // "income" | "expense" -> enum
   amount: number;
-  currency?: Currency;                    // string වෙනුවට enum
-  category: TransactionCategory;          // string වෙනුවට enum
+  currency?: Currency;                    // string -> enum
+  category: TransactionCategory;          // string -> enum
   description?: string;
   date?: string;
 }) {
@@ -35,9 +40,68 @@ export async function addTransaction(data: {
   return transaction;
 }
 
+/**
+ * Bulk-inserts transactions parsed from an imported CSV/XLS/XLSX file.
+ * Each row must already be validated/normalised on the client (amount > 0,
+ * a valid category, and a date string) before being sent here.
+ */
+export async function importTransactions(
+  rows: {
+    type: TransactionType;
+    amount: number;
+    currency: Currency;
+    category: TransactionCategory;
+    description?: string;
+    date: string;
+  }[],
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  if (!rows.length) {
+    return { count: 0, importBatch: null };
+  }
+
+  // Server-side sanity check — never trust client validation alone.
+  const clean = rows.filter(
+    (r) =>
+      Number.isFinite(r.amount) &&
+      r.amount > 0 &&
+      r.category &&
+      r.date &&
+      !Number.isNaN(new Date(r.date).getTime()),
+  );
+
+  if (!clean.length) {
+    throw new Error("No valid rows to import.");
+  }
+
+  const importBatch = `import-${Date.now()}`;
+
+  const result = await prisma.transaction.createMany({
+    data: clean.map((r) => ({
+      userId:      session.user!.id,
+      type:        r.type,
+      amount:      r.amount,
+      currency:    r.currency || Currency.LKR,
+      amountBase:  r.amount,
+      category:    r.category,
+      description: r.description,
+      date:        new Date(r.date),
+      source:      TransactionSource.Import,
+      importBatch,
+    })),
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/transactions");
+
+  return { count: result.count, importBatch };
+}
+
 export async function getTransactions(filters?: {
-  type?:      TransactionType;            // string වෙනුවට enum
-  category?:  TransactionCategory;        // string වෙනුවට enum
+  type?:      TransactionType;            // string -> enum
+  category?:  TransactionCategory;        // string -> enum
   startDate?: string;
   endDate?:   string;
 }) {

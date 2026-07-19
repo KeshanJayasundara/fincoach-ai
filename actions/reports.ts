@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { sendMonthlyReport } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 
