@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 // PUT - role එකේ displayName / emoji edit කරනවා
