@@ -16,6 +16,7 @@ import {
   type NotificationSettings,
 } from "@/actions/settings";
 import { ALL_CURRENCIES, getCurrencyDisplayName } from "@/lib/currencies";
+import { broadcastNotificationsUpdate } from "@/lib/notify-client";
 
 type Role = {
   id: string;
@@ -136,7 +137,12 @@ export default function SettingsPage() {
       setRoles(prev);
       const data = await res.json().catch(() => ({}));
       setRoleError(data.error || "Failed to archive role");
+      return;
     }
+
+    // Route handler creates a "Role archived" notification — refresh the
+    // bell instantly instead of waiting for a page reload.
+    broadcastNotificationsUpdate();
   };
 
   const openAddModal = () => {
@@ -163,7 +169,7 @@ export default function SettingsPage() {
   const closeModal = () => setModalOpen(false);
 
   const submitModal = async () => {
-    if (!formDisplayName.trim() || (modalMode === "add" && !formRoleName.trim())) {
+    if (!formDisplayName.trim() || !formRoleName.trim()) {
       setFormError("Please fill in all fields");
       return;
     }
@@ -191,6 +197,7 @@ export default function SettingsPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            roleName: formRoleName.trim(),
             displayName: formDisplayName.trim(),
             emoji: formIconKey,
           }),
@@ -200,6 +207,10 @@ export default function SettingsPage() {
           throw new Error(data.error || "Failed to update role");
         }
       }
+
+      // Both add + edit routes create a notification server-side —
+      // refresh the bell instantly.
+      broadcastNotificationsUpdate();
 
       setModalOpen(false);
       loadRoles();
@@ -229,6 +240,7 @@ export default function SettingsPage() {
     try {
       await updateName(nameInput.trim());
       await updateSession(); // refresh session so the new name shows immediately
+      broadcastNotificationsUpdate(); // refresh bell instantly, no reload
       setShowNameModal(false);
       showToast("Name updated successfully");
     } catch (err: any) {
@@ -257,6 +269,7 @@ export default function SettingsPage() {
     try {
       await updateEmail(emailInput.trim(), emailPassword);
       await updateSession();
+      broadcastNotificationsUpdate();
       setShowEmailModal(false);
       showToast("Email updated successfully");
     } catch (err: any) {
@@ -280,6 +293,7 @@ export default function SettingsPage() {
     try {
       await updateCurrency(selectedCurrency);
       await updateSession();
+      broadcastNotificationsUpdate();
       setShowCurrencyModal(false);
       showToast("Currency updated successfully");
     } catch (err: any) {
@@ -321,6 +335,7 @@ export default function SettingsPage() {
     setPasswordError(null);
     try {
       await updatePassword(currentPasswordInput, newPasswordInput);
+      broadcastNotificationsUpdate();
       setShowPasswordModal(false);
       showToast("Password updated successfully");
     } catch (err: any) {
@@ -658,19 +673,20 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Custom role name — shown only when "Other" is selected, and only in add mode */}
-            {isOtherSelected && modalMode === "add" && (
-              <div className="mb-3">
-                <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Custom role name</label>
-                <input
-                  className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
-                  placeholder="e.g. Photographer, Pilot, Chef..."
-                  value={formRoleName}
-                  onChange={(e) => setFormRoleName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-            )}
+            {/* Role name — editable text input.
+                For preset icons the name auto-fills from the icon (but can still
+                be tweaked); for "Other" it's free text. Shown in both add + edit
+                mode now, so renaming an existing role actually works. */}
+            <div className="mb-3">
+              <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Role name</label>
+              <input
+                className="w-full px-3 py-2 text-[13px] text-[#1A1635] border border-[#D1CCFF] rounded-lg bg-[#F8F7FF] focus:bg-white focus:border-[#5B4FE8] outline-none transition-all"
+                placeholder="e.g. Photographer, Pilot, Chef..."
+                value={formRoleName}
+                onChange={(e) => setFormRoleName(e.target.value)}
+                autoFocus={isOtherSelected}
+              />
+            </div>
 
             <div className="mb-3">
               <label className="block text-[11px] font-semibold text-[#4A4568] mb-1.5">Description</label>

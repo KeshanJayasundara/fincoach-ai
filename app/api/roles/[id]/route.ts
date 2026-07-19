@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 
 export async function PUT(
@@ -19,20 +20,40 @@ export async function PUT(
     return NextResponse.json({ error: "Role not found" }, { status: 404 });
   }
 
-  const { displayName, emoji } = await req.json();
-  if (!displayName?.trim()) {
-    return NextResponse.json({ error: "displayName required" }, { status: 400 });
+  const { roleName, displayName, emoji } = await req.json();
+  if (!roleName?.trim() || !displayName?.trim()) {
+    return NextResponse.json(
+      { error: "roleName and displayName required" },
+      { status: 400 }
+    );
   }
 
-  const updated = await prisma.userRole.update({
-    where: { id },
-    data: {
-      displayName: displayName.trim(),
-      emoji: emoji || role.emoji,
-    },
-  });
+  try {
+    const updated = await prisma.userRole.update({
+      where: { id },
+      data: {
+        roleName: roleName.trim(),
+        displayName: displayName.trim(),
+        emoji: emoji || role.emoji,
+      },
+    });
 
-  return NextResponse.json({ role: updated });
+    await createNotification({
+      userId: session.user.id,
+      type: "system",
+      title: "Role updated",
+      message: `Your role "${role.roleName}" was updated to "${roleName.trim()}".`,
+      link: "/dashboard/settings",
+    });
+
+    return NextResponse.json({ role: updated });
+  } catch (err: any) {
+    if (err.code === "P2002") {
+      return NextResponse.json({ error: "This role already exists" }, { status: 409 });
+    }
+    console.error("Update role error:", err);
+    return NextResponse.json({ error: "Failed to update role" }, { status: 500 });
+  }
 }
 
 // PATCH - archive කරනවා (Primary role archive කරන්න බැහැ)
@@ -58,6 +79,14 @@ export async function PATCH(
   const updated = await prisma.userRole.update({
     where: { id },
     data: { status: "ARCHIVED", archivedAt: new Date() },
+  });
+
+  await createNotification({
+    userId: session.user.id,
+    type: "system",
+    title: "Role archived",
+    message: `Your role "${role.roleName}" was archived.`,
+    link: "/dashboard/settings",
   });
 
   return NextResponse.json({ role: updated });

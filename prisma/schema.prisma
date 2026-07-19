@@ -36,6 +36,7 @@ model User {
   assets            Asset[]
   chatMessages      ChatMessage[]
   goals             Goal[]
+  notifications     Notification[]
   reportLogs        ReportLog[]
   sessions          Session[]
   transactions      Transaction[]
@@ -168,5 +169,23 @@ model ChatMessage {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
+}
+
+// NEW — powers the topbar notification bell (dropdown + unread badge).
+// Rows are created server-side only (see lib/notifications.ts), never
+// directly by the client, so a user can never spoof another user's feed.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "goal_milestone" | "weekly_digest" | "spending_alert" | "monthly_report" | "system"
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
   @@index([userId, createdAt])
 }

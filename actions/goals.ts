@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { checkGoalMilestones } from "@/lib/goalMilestones";
 
 export async function createGoal(data: {
   name: string;
@@ -41,6 +42,16 @@ export async function updateGoalProgress(id: string, addAmount: number) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
+  // Read the amount BEFORE the update so we know which side of each
+  // milestone threshold (50/75/100%) we were on beforehand.
+  const before = await prisma.goal.findUnique({
+    where: { id },
+    select: { userId: true, currentAmount: true, targetAmount: true, name: true },
+  });
+  if (!before || before.userId !== session.user.id) {
+    throw new Error("Goal not found");
+  }
+
   const goal = await prisma.goal.update({
     where: { id, userId: session.user.id },
     data: {
@@ -48,6 +59,18 @@ export async function updateGoalProgress(id: string, addAmount: number) {
         increment: addAmount,
       },
     },
+  });
+
+  // Fire-and-check milestone notifications. Awaited (not fire-and-forget)
+  // so any DB error here surfaces instead of silently vanishing, but it
+  // never blocks on external services since it only touches the DB.
+  await checkGoalMilestones({
+    userId: session.user.id,
+    goalId: goal.id,
+    goalName: before.name,
+    targetAmount: before.targetAmount,
+    beforeAmount: before.currentAmount,
+    afterAmount: goal.currentAmount,
   });
 
   revalidatePath("/dashboard/goals");

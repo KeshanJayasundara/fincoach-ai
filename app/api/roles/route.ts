@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 const MAX_ACTIVE_ROLES = 2;
 
@@ -61,6 +62,16 @@ export async function POST(req: Request) {
         toType: roleName.trim(),
         reason: "Role added via settings",
       },
+    });
+
+    await createNotification({
+      userId: session.user.id,
+      type: "system",
+      title: "New role added",
+      message: `"${roleName.trim()}" was added to your profile${
+        role.isPrimary ? " as your primary role" : ""
+      }.`,
+      link: "/dashboard/settings",
     });
 
     return NextResponse.json({ role }, { status: 201 });

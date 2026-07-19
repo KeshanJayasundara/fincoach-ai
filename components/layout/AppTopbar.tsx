@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bell, Menu, Plus, X, Check, Loader2, Target, Lightbulb, Coins } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -8,6 +8,12 @@ import AddTransactionModal from "@/components/modals/AddTransactionModal";
 import { createGoal } from "@/actions/goals";
 import { createAsset } from "@/actions/portfolio"; // 👈 real server action (stub removed)
 import { getAIUsage } from "@/actions/ai";
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  type NotificationItem,
+} from "@/actions/notifications";
 import { getRoleIcon } from "@/lib/roleIcons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRobot, faBolt, faHandPaper } from "@fortawesome/free-solid-svg-icons";
@@ -397,6 +403,153 @@ function AddAssetModal({
   );
 }
 
+/* ── Notification Bell (dropdown, unread badge, click-to-read) ── */
+function timeAgo(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function NotificationBell() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const load = () => {
+    setLoading(true);
+    getNotifications()
+      .then(({ notifications, unreadCount }) => {
+        setItems(notifications);
+        setUnreadCount(unreadCount);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  // Load once on mount so the badge shows a real count immediately,
+  // not just after the user opens the dropdown.
+  useEffect(() => {
+    load();
+  }, []);
+
+  // Any part of the app can broadcast this event right after it creates a
+  // notification (settings changes, goal milestones, etc.) so the bell
+  // updates instantly — no page reload needed. Same pattern already used
+  // for the AI-queries badge below.
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("fincoach:notifications-update", handler);
+    return () => window.removeEventListener("fincoach:notifications-update", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const handleItemClick = async (item: NotificationItem) => {
+    if (!item.read) {
+      setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+      markNotificationRead(item.id).catch(() => load()); // resync on failure
+    }
+    if (item.link) {
+      setOpen(false);
+      router.push(item.link);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    const prevItems = items;
+    const prevCount = unreadCount;
+    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead();
+    } catch {
+      setItems(prevItems);
+      setUnreadCount(prevCount);
+    }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0"
+      >
+        <Bell className="w-4 h-4" />
+        {unreadCount > 0 && (
+          <div className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </div>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-[320px] max-h-[420px] bg-white border border-[#EAE8FB] rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB] shrink-0">
+            <div className="text-[13px] font-bold text-[#1A1635]">Notifications</div>
+            {unreadCount > 0 && (
+              <button
+                onClick={handleMarkAllRead}
+                className="text-[11px] font-medium text-[#5B4FE8] hover:text-[#7B72EC]"
+              >
+                Mark all as read
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-y-auto flex-1">
+            {loading ? (
+              <div className="p-4 space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-[#F8F7FF] rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : items.length === 0 ? (
+              <div className="p-6 text-center text-[12px] text-[#8B87A8]">
+                No notifications yet.
+              </div>
+            ) : (
+              items.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => handleItemClick(item)}
+                  className={`px-4 py-3 border-b border-[#EAE8FB] last:border-b-0 cursor-pointer hover:bg-[#F8F7FF] transition-colors flex gap-2.5 ${
+                    !item.read ? "bg-[#F8F7FF]/60" : ""
+                  }`}
+                >
+                  <div className="pt-1 shrink-0">
+                    <div className={`w-1.5 h-1.5 rounded-full ${!item.read ? "bg-[#5B4FE8]" : "bg-transparent"}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-semibold text-[#1A1635] truncate">{item.title}</div>
+                    <div className="text-[11px] text-[#8B87A8] line-clamp-2 mt-0.5">{item.message}</div>
+                    <div className="text-[10px] text-[#C4C0DC] mt-1">{timeAgo(item.createdAt)}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Topbar ── */
 export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const router   = useRouter();
@@ -404,7 +557,6 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
   const { data: session } = useSession();
   const currency = session?.user?.currency || "USD";
 
-  const [notifications]                         = useState(3);
   const [showAddModal, setShowAddModal]           = useState(false);
   const [showAddGoalModal, setShowAddGoalModal]   = useState(false);
   const [showAddAssetModal, setShowAddAssetModal] = useState(false);
@@ -595,14 +747,7 @@ export default function AppTopbar({ onMenuClick }: AppTopbarProps) {
               </button>
             )}
 
-            <button className="relative w-8 h-8 md:w-9 md:h-9 flex items-center justify-center rounded-lg border border-[#EAE8FB] bg-white text-[#8B87A8] shrink-0">
-              <Bell className="w-4 h-4" />
-              {notifications > 0 && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {notifications}
-                </div>
-              )}
-            </button>
+            <NotificationBell />
 
             {/* Profile Logo - First Two Letters */}
             <div
