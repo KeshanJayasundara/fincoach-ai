@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-// PUT - role එකේ displayName / emoji edit කරනවා
+
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

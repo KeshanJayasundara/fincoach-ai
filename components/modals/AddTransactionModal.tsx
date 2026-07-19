@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import {
   X, PenLine, Camera, Upload, ChevronDown, Check,
   Loader2, Search, RotateCcw, Sparkles, AlertCircle,
-  Edit3, Save, Trash2, FileWarning,
+  Edit3, Save, Trash2, FileWarning, FileText, Circle,
 } from "lucide-react";
 import { addTransaction, importTransactions } from "@/actions/transactions";
 import {
@@ -231,7 +231,8 @@ function CategoryDropdown({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold"
               style={{ background: accentBg, color: accentColor }}
             >
-              {isExpense ? "🔴" : "🟢"} {isExpense ? "Expense" : "Income"} categories
+              <Circle size={8} fill={accentColor} className="shrink-0" style={{ color: accentColor }} />
+              {isExpense ? "Expense" : "Income"} categories
             </span>
             <span className="text-[10px] text-[#8B87A8]">{categories.length} total</span>
           </div>
@@ -676,8 +677,9 @@ function ScanTab({
           </div>
 
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3 space-y-1.5">
-            <div className="text-[11px] font-bold text-[#5B4FE8] mb-2">
-              📸 Tips for best results
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B4FE8] mb-2">
+              <Camera size={12} className="shrink-0" />
+              Tips for best results
             </div>
             {[
               "Ensure good lighting — avoid shadows on text",
@@ -1239,8 +1241,9 @@ function ImportTab({
           />
 
           <div className="bg-[#F8F7FF] border border-[#EAE8FB] rounded-xl p-3">
-            <div className="text-[11px] font-bold text-[#5B4FE8] mb-2">
-              📄 Supported formats
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B4FE8] mb-2">
+              <FileText size={12} className="shrink-0" />
+              Supported formats
             </div>
             <div className="grid grid-cols-3 gap-2">
               {["CSV", "XLS", "XLSX"].map((fmt) => (
