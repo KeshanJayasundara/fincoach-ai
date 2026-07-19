@@ -11,6 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      allowDangerousEmailAccountLinking: true,
     }),
     Credentials({
       name: "credentials",
@@ -56,16 +57,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
 
-        // Fetch fresh so name/email/currency changes in Settings show up
+        // Fetch fresh so name/email/currency/onboarding changes show up
         // immediately without waiting for the JWT to rotate.
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { name: true, email: true, preferredCurrency: true },
+          select: {
+            name: true,
+            email: true,
+            preferredCurrency: true,
+            onboardingDone: true,
+          },
         });
         if (dbUser) {
           session.user.name = dbUser.name;
           session.user.email = dbUser.email;
           session.user.currency = dbUser.preferredCurrency ?? "USD";
+          session.user.onboardingDone = dbUser.onboardingDone;
         }
       }
       return session;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react"; // ✅ ADDED
+import { signIn } from "next-auth/react"; // ADDED
 import { registerUser, verifyOTP as verifyOTPAction } from "@/actions/auth";
 
 import AuthLogo from "@/components/auth/AuthLogo";
@@ -62,7 +62,7 @@ export default function RegisterPage() {
     setLoading(false);
   };
 
-  // ✅ ONLY THIS FUNCTION CHANGED — signIn added after OTP success
+  // ONLY THIS FUNCTION CHANGED — signIn added after OTP success
   const verifyOTP = async () => {
     const code = otp.join("");
     if (code.length !== 6) {
