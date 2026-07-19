@@ -28,6 +28,11 @@ model User {
   goalMilestones    Boolean           @default(false)
   weeklyDigest      Boolean           @default(false)
 
+  // Quick AI insight cache (NEW — not yet in DB, migration will add these)
+  quickInsightText        String?
+  quickInsightSuggestions String?
+  quickInsightUpdatedAt   DateTime?
+
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   resetToken        String?
