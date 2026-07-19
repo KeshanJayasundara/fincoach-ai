@@ -280,18 +280,6 @@ export default function GoalsPage() {
         <p className="text-[#8B87A8] text-sm">Track your financial targets</p>
       </div>
 
-      {/* AI Banner */}
-      <div className="bg-gradient-to-r from-[#1A1635] to-[#2D2756] rounded-xl p-4 flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#5B4FE8]/30 rounded-lg flex items-center justify-center shrink-0">
-          <FontAwesomeIcon icon={faRobot} className="text-[#9B93F5] text-lg" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-[#C7C3F8] mb-0.5">AI Goal Coach</div>
-          <div className="text-[12px] text-white/60 leading-relaxed">
-            Saving an extra <strong className="text-[#9B93F5]">LKR 4,200/month</strong> would hit all goals faster!
-          </div>
-        </div>
-      </div>
 
       {/* Loading */}
       {loading && (
