@@ -1038,20 +1038,129 @@ function parseDateValue(raw: any): string {
   return "";
 }
 
-// Reads a CSV/XLS/XLSX file and returns normalised, best-effort rows.
-// Column headers are auto-detected from common variants used by
-// bank/expense-tracker exports.
-async function parseImportFile(
+// Keywords that indicate a row is likely the "real" header row of a table,
+// as opposed to a preamble/metadata row (bank name, account number,
+// statement period, etc.) that often appears above the actual data in
+// exported bank/wallet statements.
+const HEADER_HINTS = [
+  "date", "time", "description", "narration", "particulars", "details", "remarks", "memo",
+  "amount", "debit", "credit", "withdrawal", "deposit", "value", "category", "type", "balance",
+];
+
+// Scans the first ~20 rows of a sheet (as an array-of-arrays) and returns
+// the index of the row that looks most like a real header row. Returns -1
+// if nothing in the scanned rows looks like a header at all.
+function detectHeaderRowIndex(aoa: any[][]): number {
+  let bestIdx = -1;
+  let bestScore = 0;
+  const scanLimit = Math.min(aoa.length, 20);
+
+  for (let i = 0; i < scanLimit; i++) {
+    const row = aoa[i] ?? [];
+    const nonEmpty = row.filter((c) => c !== null && c !== undefined && String(c).trim() !== "");
+    if (nonEmpty.length < 2) continue; // a real header spans multiple columns
+
+    const score = nonEmpty.reduce((acc: number, cell: any) => {
+      const norm = String(cell).trim().toLowerCase();
+      return acc + (HEADER_HINTS.some((h) => norm.includes(h)) ? 1 : 0);
+    }, 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
+}
+
+// Converts a sheet's array-of-arrays into row objects, first locating the
+// real header row (skipping any preamble above it). If no row looks like a
+// header at all, the sheet is treated as "headerless": rows are still
+// returned (with generic Column1/Column2/... keys) but flagged so the
+// caller skips straight to AI parsing instead of the keyword heuristic.
+function sheetToObjectRows(aoa: any[][]): { rows: Record<string, any>[]; headerless: boolean } {
+  if (aoa.length === 0) return { rows: [], headerless: false };
+
+  const headerIdx = detectHeaderRowIndex(aoa);
+  const isRowEmpty = (r: any[]) =>
+    !r.some((c) => c !== null && c !== undefined && String(c).trim() !== "");
+
+  if (headerIdx === -1) {
+    const width = Math.max(...aoa.map((r) => r.length), 1);
+    const rows = aoa
+      .filter((r) => !isRowEmpty(r))
+      .map((r) => {
+        const obj: Record<string, any> = {};
+        for (let c = 0; c < width; c++) obj[`Column${c + 1}`] = r[c] ?? "";
+        return obj;
+      });
+    return { rows, headerless: true };
+  }
+
+  const headers = (aoa[headerIdx] ?? []).map((h, i) =>
+    String(h ?? "").trim() || `Column${i + 1}`,
+  );
+
+  const rows = aoa
+    .slice(headerIdx + 1)
+    .filter((r) => !isRowEmpty(r))
+    .map((r) => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => { obj[h] = r[i] ?? ""; });
+      return obj;
+    });
+
+  return { rows, headerless: false };
+}
+
+// ── Reads a CSV/XLS/XLSX file into raw row objects (headers exactly as ──
+// they appear in the file, values un-normalised). Shared by both the
+// heuristic mapper and the AI fallback below, so the file is only ever
+// read once.
+//
+// Handles two real-world messiness cases beyond a single clean sheet:
+//  - Multiple sheets/tabs: every sheet is read and concatenated.
+//  - Header row not on line 1: common in bank exports that have a few
+//    metadata rows (account number, statement period, bank name) above
+//    the actual table. detectHeaderRowIndex finds the real header row
+//    and preamble rows above it are discarded.
+// If a sheet has nothing recognisable as a header at all, it's flagged
+// "headerless" so the caller sends it straight to AI parsing rather than
+// running the column-name heuristic against meaningless Column1/Column2
+// keys.
+async function readRawRows(
   file: File,
-): Promise<{ rows: ParsedRow[]; skipped: number }> {
+): Promise<{ rows: Record<string, any>[]; headerless: boolean }> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return { rows: [], skipped: 0 };
 
-  const sheet = workbook.Sheets[sheetName];
-  const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+  let allRows: Record<string, any>[] = [];
+  let headerless = false;
 
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) continue;
+
+    const aoa = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+    if (aoa.length === 0) continue;
+
+    const { rows, headerless: sheetHeaderless } = sheetToObjectRows(aoa);
+    if (rows.length === 0) continue;
+
+    allRows = allRows.concat(rows);
+    if (sheetHeaderless) headerless = true;
+  }
+
+  return { rows: allRows, headerless };
+}
+
+// Maps raw rows into ParsedRow[] using known header-name heuristics.
+// Column headers are auto-detected from common variants used by
+// bank/expense-tracker exports. Rows it can't make sense of are skipped.
+function mapHeuristicRows(
+  raw: Record<string, any>[],
+): { rows: ParsedRow[]; skipped: number } {
   const rows: ParsedRow[] = [];
   let skipped = 0;
 
@@ -1104,6 +1213,57 @@ async function parseImportFile(
   return { rows, skipped };
 }
 
+// ── AI fallback ───────────────────────────────────────────────────────────
+// Used when mapHeuristicRows() can't find recognisable columns (e.g. every
+// row got skipped). Sends the raw rows, headers untouched, to /api/import-
+// transactions, where Claude maps arbitrary column names to our schema.
+function mapAiRows(aiRows: any[]): ParsedRow[] {
+  const rows: ParsedRow[] = [];
+
+  aiRows.forEach((r, idx) => {
+    const amount = typeof r?.amount === "number" ? r.amount : parseFloat(r?.amount);
+    const validDate = typeof r?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date);
+
+    if (!validDate || !Number.isFinite(amount) || amount <= 0) return;
+
+    const category = matchCategory(String(r.category ?? ""));
+    const type = category
+      ? inferType(category)
+      : r.type === "income"
+        ? TransactionType.Income
+        : TransactionType.Expense;
+
+    rows.push({
+      id:          `row-ai-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      date:        r.date,
+      amount:      Math.abs(amount).toFixed(2),
+      description: String(r.description ?? "").slice(0, 120),
+      category,
+      type,
+      currency:    Currency.LKR,
+      include:     true,
+    });
+  });
+
+  return rows;
+}
+
+async function parseRowsWithAI(raw: Record<string, any>[]): Promise<ParsedRow[]> {
+  const response = await fetch("/api/import-transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rows: raw }),
+  });
+
+  const json = await response.json();
+
+  if (!response.ok || json.error) {
+    throw new Error(json.error || `Server error: ${response.status}`);
+  }
+
+  return mapAiRows(json.result ?? []);
+}
+
 function ImportTab({
   onClose,
   onSuccess,
@@ -1111,13 +1271,14 @@ function ImportTab({
   onClose: () => void;
   onSuccess?: () => void;
 }) {
-  type Stage = "select" | "parsing" | "preview" | "saving" | "done" | "error";
+  type Stage = "select" | "parsing" | "ai-parsing" | "preview" | "saving" | "done" | "error";
 
   const [stage, setStage]         = useState<Stage>("select");
   const [file, setFile]           = useState<File | null>(null);
   const [dragging, setDragging]   = useState(false);
   const [rows, setRows]           = useState<ParsedRow[]>([]);
   const [skipped, setSkipped]     = useState(0);
+  const [usedAI, setUsedAI]       = useState(false);
   const [errMsg, setErrMsg]       = useState("");
   const [savedCount, setSavedCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1126,17 +1287,45 @@ function ImportTab({
     setFile(f);
     setStage("parsing");
     setErrMsg("");
+    setUsedAI(false);
+
     try {
-      const { rows: parsed, skipped: sk } = await parseImportFile(f);
-      if (parsed.length === 0) {
+      const { rows: raw, headerless } = await readRawRows(f);
+
+      if (raw.length === 0) {
+        setErrMsg("This file appears to be empty.");
+        setStage("error");
+        return;
+      }
+
+      if (!headerless) {
+        const { rows: heuristicRows, skipped: heuristicSkipped } = mapHeuristicRows(raw);
+
+        if (heuristicRows.length > 0) {
+          setRows(heuristicRows);
+          setSkipped(heuristicSkipped);
+          setStage("preview");
+          return;
+        }
+      }
+
+      // No recognisable columns (or no header row found at all) — fall
+      // back to AI parsing so the person isn't stuck just because their
+      // headers don't match our keyword list.
+      setStage("ai-parsing");
+      const aiRows = await parseRowsWithAI(raw);
+
+      if (aiRows.length === 0) {
         setErrMsg(
-          "No valid transactions found in this file. Make sure it has recognisable columns like date, amount, and description.",
+          "Couldn't find any valid transactions in this file, even with AI parsing. Please double-check the file contents.",
         );
         setStage("error");
         return;
       }
-      setRows(parsed);
-      setSkipped(sk);
+
+      setRows(aiRows);
+      setSkipped(Math.max(raw.length - aiRows.length, 0));
+      setUsedAI(true);
       setStage("preview");
     } catch (e: any) {
       setErrMsg(
@@ -1202,6 +1391,7 @@ function ImportTab({
     setFile(null);
     setRows([]);
     setSkipped(0);
+    setUsedAI(false);
     setErrMsg("");
     setSavedCount(0);
   };
@@ -1258,7 +1448,8 @@ function ImportTab({
             <p className="text-[10.5px] text-[#8B87A8] mt-2">
               Column headers like{" "}
               <span className="font-mono">date, amount, description, category</span>{" "}
-              (or <span className="font-mono">debit/credit</span>) are auto-detected.
+              (or <span className="font-mono">debit/credit</span>) are auto-detected. If your
+              headers don&apos;t match, AI will step in and read the file for you.
               You&apos;ll get to review and fix everything before it&apos;s saved.
             </p>
           </div>
@@ -1279,6 +1470,17 @@ function ImportTab({
         <div className="flex flex-col items-center justify-center gap-3 py-14">
           <Loader2 size={22} className="animate-spin text-[#5B4FE8]" />
           <div className="text-[13px] font-semibold text-[#1A1635]">Reading your file…</div>
+          <p className="text-[11px] text-[#8B87A8]">{file?.name}</p>
+        </div>
+      )}
+
+      {/* ── AI PARSING (fallback) ── */}
+      {stage === "ai-parsing" && (
+        <div className="flex flex-col items-center justify-center gap-3 py-14">
+          <Sparkles size={22} className="animate-pulse text-[#5B4FE8]" />
+          <div className="text-[13px] font-semibold text-[#1A1635]">
+            No standard columns found — using AI to read it…
+          </div>
           <p className="text-[11px] text-[#8B87A8]">{file?.name}</p>
         </div>
       )}
@@ -1307,8 +1509,14 @@ function ImportTab({
         <div className="space-y-3">
           <div className="bg-[#EEF0FD] border border-[#C7C3F8] rounded-xl px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-semibold text-[#3C3489]">
+              <span className="text-[12px] font-semibold text-[#3C3489] flex items-center gap-1.5">
+                {usedAI && <Sparkles size={12} className="shrink-0" />}
                 {rows.length} transaction{rows.length !== 1 ? "s" : ""} detected
+                {usedAI && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white text-[#5B4FE8]">
+                    Parsed with AI
+                  </span>
+                )}
               </span>
               {skipped > 0 && (
                 <span className="text-[10.5px] text-[#8B87A8]">
