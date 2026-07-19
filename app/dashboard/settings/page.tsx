@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { X, Check, AlertTriangle, Loader2, Eye, EyeOff, Search, Pencil, CheckCircle2 } from "lucide-react";
+import { X, Check, AlertTriangle, Loader2, Eye, EyeOff, Search, CheckCircle2 } from "lucide-react";
 import { ROLE_ICON_OPTIONS, getRoleIcon } from "@/lib/roleIcons";
 import ProfessionCard from "@/components/onboarding/ProfessionCard";
 import {
@@ -15,6 +15,7 @@ import {
   updateNotificationSetting,
   type NotificationSettings,
 } from "@/actions/settings";
+import { getAIUsage } from "@/actions/ai";
 import { ALL_CURRENCIES, getCurrencyDisplayName } from "@/lib/currencies";
 import { broadcastNotificationsUpdate } from "@/lib/notify-client";
 
@@ -49,6 +50,42 @@ export default function SettingsPage() {
       .catch(() => showToast("Couldn't load notification settings"))
       .finally(() => setLoadingNotifications(false));
   }, []);
+
+  // ── AI usage (Plan & billing) ──
+  // Same source + same live-update event as AppSidebar, so this widget
+  // always matches what the sidebar shows — no separate polling needed.
+  const [queriesUsed, setQueriesUsed] = useState<number | null>(null);
+  const [queriesLimit, setQueriesLimit] = useState<number | null>(null);
+
+  useEffect(() => {
+    getAIUsage()
+      .then(({ queriesUsed, queriesLimit }) => {
+        setQueriesUsed(queriesUsed);
+        setQueriesLimit(queriesLimit);
+      })
+      .catch(() => {
+        // Silently ignore — section just won't show real numbers.
+      });
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ queriesLeft: number }>).detail;
+      if (detail && typeof detail.queriesLeft === "number" && queriesLimit !== null) {
+        setQueriesUsed(queriesLimit - detail.queriesLeft);
+      }
+    };
+
+    window.addEventListener("fincoach:queries-update", handler);
+    return () => window.removeEventListener("fincoach:queries-update", handler);
+  }, [queriesLimit]);
+
+  const hasUsage = queriesUsed !== null && queriesLimit !== null;
+  const usagePct =
+    hasUsage && queriesLimit! > 0
+      ? Math.min(Math.round((queriesUsed! / queriesLimit!) * 100), 100)
+      : 0;
+  const planLabel = hasUsage && queriesLimit! >= 999 ? "Pro plan" : "Free plan";
 
   // ── Profile edit modals ──
   const [showNameModal, setShowNameModal] = useState(false);
@@ -579,7 +616,9 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
                 <div>
                   <div className="text-[13px] font-semibold text-[#1A1635]">Current plan</div>
-                  <div className="text-[11px] text-[#8B87A8]">Free · 10 AI queries/month</div>
+                  <div className="text-[11px] text-[#8B87A8]">
+                    {hasUsage ? `${planLabel} · ${queriesLimit} AI queries/month` : "Loading…"}
+                  </div>
                 </div>
                 <button className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#5B4FE8] rounded-lg hover:bg-[#7B72EC] transition-all">
                   Upgrade
@@ -588,11 +627,16 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#EAE8FB]">
                 <div>
                   <div className="text-[13px] font-semibold text-[#1A1635]">AI queries used</div>
-                  <div className="text-[11px] text-[#8B87A8]">7 of 10 this month</div>
+                  <div className="text-[11px] text-[#8B87A8]">
+                    {hasUsage ? `${queriesUsed} of ${queriesLimit} this month` : "Loading…"}
+                  </div>
                 </div>
                 <div className="w-20">
                   <div className="h-1.5 bg-[#EAE8FB] rounded-full overflow-hidden">
-                    <div className="h-full w-[70%] bg-[#D97706] rounded-full" />
+                    <div
+                      className="h-full rounded-full bg-[#D97706] transition-all duration-300"
+                      style={{ width: `${usagePct}%` }}
+                    />
                   </div>
                 </div>
               </div>
